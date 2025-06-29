@@ -1,0 +1,236 @@
+/* PTA计时器样式 */
+#pta-timer-display {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    width: 180px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+    color: #333;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    z-index: 9999;
+    overflow: hidden;
+    animation: slideIn 0.3s ease-out;
+    transition: all 0.3s ease;
+    border: 1px solid #e0e0e0;
+}
+
+/* 未固定状态样式 */
+#pta-timer-display:not(.fixed) {
+    cursor: move;
+    user-select: none;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+    border: 1px solid #e0e0e0;
+}
+
+/* 拖动时的样式 */
+#pta-timer-display:not(.fixed):active {
+    opacity: 0.8;
+    z-index: 10000;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+    transform: scale(1.02);
+}
+
+/* 固定状态样式 */
+#pta-timer-display.fixed {
+    position: fixed !important;
+    top: 20px !important;
+    right: 20px !important;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+    border: 2px solid #667eea;
+    cursor: default;
+    user-select: auto;
+}
+
+/* 固定状态下禁用拖动相关样式 */
+#pta-timer-display.fixed * {
+    cursor: default !important;
+    user-select: auto !important;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+.timer-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background: #f8f9fa;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.timer-header span {
+    font-weight: 600;
+    font-size: 12px;
+    color: #333;
+}
+
+.timer-controls {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+}
+
+#pta-timer-close,
+#pta-fix-toggle {
+    background: none;
+    border: none;
+    color: #666;
+    font-size: 12px;
+    cursor: pointer;
+    padding: 2px;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.2s;
+}
+
+#pta-timer-close:hover,
+#pta-fix-toggle:hover {
+    background: #e9ecef;
+    color: #333;
+    transform: scale(1.1);
+}
+
+#pta-fix-toggle {
+    font-size: 10px;
+}
+
+.timer-content {
+    padding: 12px;
+}
+
+.timer-time {
+    font-size: 16px;
+    font-weight: 700;
+    font-family: 'Courier New', monospace;
+    background: #f8f9fa;
+    padding: 8px 12px;
+    border-radius: 6px;
+    text-align: center;
+    margin-bottom: 8px;
+    color: #333;
+    border: 1px solid #e0e0e0;
+    transition: all 0.3s ease;
+}
+
+/* 倒计时状态样式 */
+.timer-time.warning {
+    background: #fff3cd;
+    color: #856404;
+    border-color: #ffeaa7;
+}
+
+.timer-time.danger {
+    background: #f8d7da;
+    color: #721c24;
+    border-color: #f5c6cb;
+    animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+    0% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.7;
+    }
+
+    100% {
+        opacity: 1;
+    }
+}
+
+.timer-buttons {
+    display: flex;
+    gap: 4px;
+    justify-content: center;
+}
+
+#pta-play-pause,
+#pta-reset,
+#pta-countdown {
+    background: #667eea;
+    border: none;
+    color: white;
+    padding: 6px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 500;
+    transition: all 0.2s;
+    min-width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#pta-play-pause:hover,
+#pta-reset:hover,
+#pta-countdown:hover {
+    background: #5a6fd8;
+    transform: translateY(-1px);
+}
+
+#pta-reset {
+    background: #6c757d;
+}
+
+#pta-reset:hover {
+    background: #5a6268;
+}
+
+#pta-countdown {
+    background: #28a745;
+}
+
+#pta-countdown:hover {
+    background: #218838;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    #pta-timer-display {
+        top: 10px;
+        right: 10px;
+        width: 160px;
+    }
+
+    .timer-content {
+        padding: 10px;
+    }
+
+    .timer-time {
+        font-size: 14px;
+        padding: 6px 10px;
+    }
+
+    .timer-buttons {
+        gap: 3px;
+    }
+
+    #pta-play-pause,
+    #pta-reset,
+    #pta-countdown {
+        padding: 4px 6px;
+        font-size: 11px;
+        min-width: 24px;
+        height: 24px;
+    }
+}

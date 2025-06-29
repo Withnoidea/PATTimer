@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PTA计时器</title>
+    <style>
+        body {
+            width: 280px;
+            min-height: 250px;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: white;
+            color: #333;
+        }
+
+        .header {
+            text-align: center;
+            padding: 16px;
+            border-bottom: 1px solid #e0e0e0;
+            background: #f8f9fa;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .content {
+            padding: 16px;
+        }
+
+        .stats-section {
+            margin-bottom: 20px;
+        }
+
+        .stats-title {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 8px;
+        }
+
+        .stats-value {
+            font-size: 20px;
+            font-weight: 700;
+            font-family: 'Courier New', monospace;
+            background: #f8f9fa;
+            padding: 12px;
+            border-radius: 6px;
+            text-align: center;
+            color: #333;
+            border: 1px solid #e0e0e0;
+        }
+
+        .countdown-section {
+            margin-bottom: 20px;
+        }
+
+        .countdown-input {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .countdown-input input {
+            flex: 1;
+            padding: 8px 12px;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            background: white;
+            color: #333;
+            font-size: 14px;
+        }
+
+        .countdown-input input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .countdown-display {
+            font-size: 16px;
+            font-weight: 700;
+            font-family: 'Courier New', monospace;
+            background: #fff3cd;
+            padding: 10px;
+            border-radius: 6px;
+            text-align: center;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+
+        .countdown-display.warning {
+            background: #fef5e7;
+            color: #f39c12;
+            border-color: #f39c12;
+        }
+
+        .countdown-display.danger {
+            background: #fdf2f2;
+            color: #e74c3c;
+            border-color: #e74c3c;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.7;
+            }
+
+            100% {
+                opacity: 1;
+            }
+        }
+
+        .sessions-section {
+            margin-bottom: 20px;
+        }
+
+        .session-item {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 6px;
+            margin-bottom: 6px;
+            font-size: 11px;
+            border: 1px solid #e0e0e0;
+        }
+
+        .session-id {
+            font-weight: 600;
+            margin-bottom: 4px;
+            color: #333;
+        }
+
+        .session-time {
+            color: #666;
+        }
+
+        .actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn {
+            background: #667eea;
+            border: none;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 500;
+            transition: all 0.2s;
+            flex: 1;
+        }
+
+        .btn:hover {
+            background: #5a6fd8;
+            transform: translateY(-1px);
+        }
+
+        .btn.primary {
+            background: #28a745;
+        }
+
+        .btn.primary:hover {
+            background: #218838;
+        }
+
+        .btn.danger {
+            background: #dc3545;
+        }
+
+        .btn.danger:hover {
+            background: #c82333;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header">
+        <h1>PTA计时器</h1>
+    </div>
+
+    <div class="content">
+        <div class="stats-section">
+            <div class="stats-title">当前题目时间</div>
+            <div class="stats-value" id="current-time">00:00:00</div>
+        </div>
+
+        <div class="countdown-section">
+            <div class="stats-title">倒计时设置</div>
+            <div class="countdown-input">
+                <input type="number" id="countdown-input" placeholder="分钟" min="1" max="999">
+                <button class="btn primary" id="start-countdown">开始</button>
+            </div>
+            <div class="countdown-display" id="countdown-display" style="display: none;">未设置</div>
+        </div>
+
+        <div class="sessions-section">
+            <div class="stats-title">最近记录</div>
+            <div id="sessions-list">
+                <div class="session-item">
+                    <div class="session-id">暂无记录</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="actions">
+            <button class="btn" id="reset-timer">重置计时</button>
+            <button class="btn danger" id="clear-data">清除数据</button>
+        </div>
+    </div>
+
+    <script src="popup.js"></script>
+</body>
+
+</html>

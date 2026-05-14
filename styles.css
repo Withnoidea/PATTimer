@@ -1,0 +1,450 @@
+/* ============================================
+   PTA Timer - Content Script Styles
+   Ultra-Compact Floating Timer Widget
+   Focus Precision Design System
+   ============================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap');
+
+/* Timer Widget Container */
+#pta-timer-display {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    width: auto;
+    min-width: 340px;
+    height: 44px;
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    border-radius: 10px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+    animation: slideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all 0.2s ease;
+    ring: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+#pta-timer-display:hover {
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+}
+
+/* Dragging states */
+#pta-timer-display:not(.fixed) {
+    cursor: move;
+    user-select: none;
+}
+
+#pta-timer-display:not(.fixed):active {
+    opacity: 0.85;
+    transform: scale(1.01);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+/* Fixed state */
+#pta-timer-display.fixed {
+    cursor: default;
+    user-select: auto;
+    border: 1.5px solid rgba(37, 99, 235, 0.3);
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateY(-10px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* Left Branding Section */
+.timer-brand {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 12px;
+    height: 100%;
+    border-right: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.timer-brand-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.timer-brand-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.timer-status-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: #006c49;
+    box-shadow: 0 0 4px rgba(0, 108, 73, 0.4);
+}
+
+.timer-status-dot.paused {
+    background: #d97706;
+    box-shadow: 0 0 4px rgba(217, 119, 6, 0.4);
+}
+
+.timer-brand-label {
+    font-size: 10px;
+    font-weight: 700;
+    color: rgba(21, 28, 39, 0.8);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.timer-exam-badge {
+    font-size: 8px;
+    font-weight: 700;
+    background: rgba(207, 44, 48, 0.85);
+    color: #fff;
+    padding: 1px 4px;
+    border-radius: 3px;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    line-height: 1;
+}
+
+.timer-problem-id {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    opacity: 0.5;
+}
+
+.timer-problem-id span {
+    font-size: 8px;
+    text-transform: uppercase;
+    letter-spacing: -0.02em;
+    color: #434655;
+}
+
+.timer-problem-mode {
+    font-size: 8px;
+    text-transform: uppercase;
+    letter-spacing: -0.02em;
+    color: #006c49;
+    font-weight: 500;
+}
+
+/* Central Display */
+.timer-center {
+    display: flex;
+    align-items: center;
+    flex: 1;
+    padding: 0 12px;
+    gap: 12px;
+    height: 100%;
+    position: relative;
+}
+
+.timer-time-display {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 18px;
+    font-weight: 600;
+    color: #004ac6;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+    line-height: 1;
+}
+
+.timer-time-display.warning {
+    color: #d97706;
+}
+
+.timer-time-display.danger {
+    color: #ab0b1c;
+    animation: timerPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes timerPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+/* Divider */
+.timer-divider {
+    width: 1px;
+    height: 20px;
+    background: rgba(0, 0, 0, 0.05);
+}
+
+/* Controls Cluster */
+.timer-controls-cluster {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.timer-ctrl-btn {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    padding: 0;
+}
+
+.timer-ctrl-btn:active {
+    transform: scale(0.9);
+}
+
+.timer-ctrl-btn .material-symbols-outlined {
+    font-size: 16px;
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+}
+
+/* Play/Pause - Primary */
+.timer-ctrl-btn.btn-play-pause {
+    background: #004ac6;
+    color: white;
+    box-shadow: 0 1px 3px rgba(0, 74, 198, 0.3);
+}
+
+.timer-ctrl-btn.btn-play-pause:hover {
+    background: #2563eb;
+}
+
+.timer-ctrl-btn.btn-play-pause .material-symbols-outlined {
+    font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+}
+
+/* Reset */
+.timer-ctrl-btn.btn-reset {
+    background: transparent;
+    color: #434655;
+}
+
+.timer-ctrl-btn.btn-reset:hover {
+    background: rgba(0, 0, 0, 0.05);
+}
+
+/* Stop/Countdown */
+.timer-ctrl-btn.btn-countdown {
+    background: transparent;
+    color: #434655;
+}
+
+.timer-ctrl-btn.btn-countdown:hover {
+    color: #006c49;
+    background: rgba(108, 248, 187, 0.1);
+}
+
+/* Progress Bar */
+.timer-progress-bar {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: rgba(0, 0, 0, 0.05);
+}
+
+.timer-progress-fill {
+    height: 100%;
+    background: #4edea3;
+    box-shadow: 0 0 4px rgba(78, 222, 163, 0.3);
+    transition: width 1s linear;
+    width: 0%;
+}
+
+.timer-progress-fill.warning {
+    background: #d97706;
+    box-shadow: 0 0 4px rgba(217, 119, 6, 0.3);
+}
+
+.timer-progress-fill.danger {
+    background: #ab0b1c;
+    box-shadow: 0 0 4px rgba(171, 11, 28, 0.3);
+}
+
+/* Right Actions */
+.timer-actions {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 0 8px;
+    height: 100%;
+    border-left: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.timer-action-btn {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: transparent;
+    border-radius: 6px;
+    cursor: pointer;
+    color: rgba(67, 70, 85, 0.5);
+    transition: all 0.15s ease;
+    padding: 0;
+}
+
+.timer-action-btn:hover {
+    color: #151c27;
+    background: rgba(0, 0, 0, 0.05);
+}
+
+.timer-action-btn:active {
+    transform: scale(0.9);
+}
+
+.timer-action-btn .material-symbols-outlined {
+    font-size: 14px;
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+}
+
+.timer-action-btn.pinned {
+    color: #004ac6;
+}
+
+.timer-action-btn.pinned .material-symbols-outlined {
+    font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+}
+
+/* Countdown Dialog Overlay */
+.timer-countdown-dialog {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10001;
+    animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.timer-countdown-panel {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    width: 280px;
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.15);
+    animation: scaleIn 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes scaleIn {
+    from { transform: scale(0.95); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+}
+
+.timer-countdown-panel h3 {
+    font-size: 14px;
+    font-weight: 600;
+    color: #151c27;
+    margin-bottom: 12px;
+}
+
+.timer-countdown-panel input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1.5px solid #c3c6d7;
+    border-radius: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 16px;
+    font-weight: 500;
+    color: #151c27;
+    outline: none;
+    margin-bottom: 12px;
+    transition: border-color 0.2s;
+}
+
+.timer-countdown-panel input:focus {
+    border-color: #004ac6;
+    box-shadow: 0 0 0 3px rgba(0, 74, 198, 0.1);
+}
+
+.timer-countdown-panel input::placeholder {
+    color: #737686;
+    font-family: 'Inter', sans-serif;
+    font-weight: 400;
+    font-size: 13px;
+}
+
+.timer-countdown-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.timer-countdown-actions button {
+    flex: 1;
+    padding: 10px;
+    border-radius: 8px;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    border: none;
+}
+
+.timer-countdown-actions button:active {
+    transform: scale(0.97);
+}
+
+.timer-countdown-actions .btn-confirm {
+    background: #004ac6;
+    color: white;
+}
+
+.timer-countdown-actions .btn-confirm:hover {
+    background: #2563eb;
+}
+
+.timer-countdown-actions .btn-cancel {
+    background: #f0f3ff;
+    color: #434655;
+    border: 1px solid #c3c6d7;
+}
+
+.timer-countdown-actions .btn-cancel:hover {
+    background: #e2e8f8;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    #pta-timer-display {
+        min-width: 300px;
+        top: 8px;
+        right: 8px;
+        height: 40px;
+    }
+
+    .timer-time-display {
+        font-size: 16px;
+    }
+
+    .timer-ctrl-btn {
+        width: 26px;
+        height: 26px;
+    }
+}

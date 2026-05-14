@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PTA Timer</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="popup.css">
+</head>
+
+<body>
+    <div class="plugin-container">
+
+        <!-- ============================================
+             VIEW: Timer (Default)
+             ============================================ -->
+        <div class="view" id="view-timer">
+            <!-- TopAppBar -->
+            <header class="top-app-bar">
+                <div class="app-bar-left">
+                    <span class="app-title">PTA Timer</span>
+                </div>
+                <div class="app-bar-right">
+                    <button class="icon-btn" id="nav-exams-btn" title="考试列表">
+                        <span class="material-symbols-outlined">assignment</span>
+                    </button>
+                    <button class="icon-btn" id="pin-btn" title="固定">
+                        <span class="material-symbols-outlined">push_pin</span>
+                    </button>
+                    <button class="icon-btn" id="settings-btn" title="设置">
+                        <span class="material-symbols-outlined">settings</span>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Main Content -->
+            <main class="view-content">
+                <!-- Problem Header -->
+                <div class="problem-header">
+                    <div class="problem-info">
+                        <p class="problem-subtitle" id="problem-subtitle">当前题目</p>
+                        <h3 class="problem-title" id="problem-title">等待检测...</h3>
+                    </div>
+                </div>
+
+                <!-- Timer Display -->
+                <div class="timer-display-section">
+                    <div class="timer-display-wrapper">
+                        <p class="timer-label">题目用时</p>
+                        <div class="timer-value" id="timer-value">00:00:00</div>
+                    </div>
+                    <div class="timer-controls">
+                        <button class="control-btn" id="play-pause-btn" title="暂停">
+                            <span class="material-symbols-outlined">pause</span>
+                        </button>
+                        <button class="control-btn" id="reset-btn" title="重置">
+                            <span class="material-symbols-outlined">history</span>
+                        </button>
+                        <button class="control-btn countdown-btn" id="countdown-btn" title="倒计时">
+                            <span class="material-symbols-outlined">timer</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Countdown Input -->
+                <div class="countdown-input-section" id="countdown-input-section" style="display: none;">
+                    <div class="countdown-input-row">
+                        <input type="number" class="countdown-input" id="countdown-input" placeholder="分钟" min="1" max="999">
+                        <button class="btn-primary-sm" id="start-countdown-btn">开始</button>
+                        <button class="btn-cancel-sm" id="cancel-countdown-btn">取消</button>
+                    </div>
+                </div>
+
+                <!-- Sessions List -->
+                <div class="quick-stats">
+                    <div class="stats-header">
+                        <span class="stats-label">最近记录</span>
+                    </div>
+                    <div class="sessions-list" id="sessions-list">
+                        <div class="empty-state">
+                            <span class="material-symbols-outlined icon-empty">history</span>
+                            <span class="empty-text">暂无记录</span>
+                        </div>
+                    </div>
+                </div>
+            </main>
+
+            <!-- Footer -->
+            <footer class="app-footer">
+                <div class="footer-status">
+                    <div class="status-dot" id="status-dot"></div>
+                    <span class="status-text" id="status-text">未连接</span>
+                </div>
+                <span class="version-text">v2.0.0</span>
+            </footer>
+        </div>
+
+        <!-- ============================================
+             VIEW: Exam List
+             ============================================ -->
+        <div class="view" id="view-exam-list" style="display: none;">
+            <header class="top-app-bar">
+                <div class="app-bar-left">
+                    <button class="icon-btn" id="exam-list-back-btn">
+                        <span class="material-symbols-outlined">arrow_back</span>
+                    </button>
+                    <span class="app-title">PTA Timer</span>
+                </div>
+                <div class="app-bar-right">
+                    <button class="icon-btn" title="固定">
+                        <span class="material-symbols-outlined">push_pin</span>
+                    </button>
+                </div>
+            </header>
+
+            <main class="view-content exam-list-content">
+                <!-- Contextual Header -->
+                <div class="context-header">
+                    <h1 class="context-title">考试列表</h1>
+                    <div class="search-bar">
+                        <span class="material-symbols-outlined search-icon">search</span>
+                        <input type="text" class="search-input" id="exam-search-input" placeholder="搜索考试...">
+                    </div>
+                </div>
+
+                <!-- Scrollable Exam List -->
+                <div class="exam-list-scroll" id="exam-list-scroll">
+                    <!-- Items will be rendered by JS -->
+                </div>
+            </main>
+
+            <!-- Footer: Return to Timer -->
+            <footer class="exam-list-footer">
+                <button class="btn-return-timer" id="return-timer-btn">
+                    <span class="material-symbols-outlined">timer</span>
+                    返回计时器
+                </button>
+            </footer>
+        </div>
+
+        <!-- ============================================
+             VIEW: Exam Problem List
+             ============================================ -->
+        <div class="view" id="view-exam-problems" style="display: none;">
+            <header class="top-app-bar">
+                <div class="app-bar-left">
+                    <span class="app-title">PTA Timer</span>
+                </div>
+                <div class="app-bar-right">
+                    <button class="icon-btn" title="固定">
+                        <span class="material-symbols-outlined">push_pin</span>
+                    </button>
+                </div>
+            </header>
+
+            <div class="exam-problems-layout">
+                <!-- Side Nav -->
+                <nav class="side-nav">
+                    <div class="side-nav-logo">
+                        <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1; color: var(--primary); font-size: 28px;">timer</span>
+                    </div>
+                    <div class="side-nav-items">
+                        <div class="side-nav-item active" id="nav-item-timer">
+                            <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">timer</span>
+                            <span class="side-nav-label">Timer</span>
+                        </div>
+                        <div class="side-nav-item" id="nav-item-settings">
+                            <span class="material-symbols-outlined">settings</span>
+                            <span class="side-nav-label">Settings</span>
+                        </div>
+                    </div>
+                </nav>
+
+                <!-- Main Canvas -->
+                <main class="exam-problems-main">
+                    <!-- Back to Exams -->
+                    <div class="exam-problems-back">
+                        <button class="btn-text-primary" id="back-to-exams-btn">
+                            <span class="material-symbols-outlined">arrow_back</span>
+                            返回考试列表
+                        </button>
+                    </div>
+
+                    <!-- Exam Title -->
+                    <div class="exam-title-section">
+                        <h1 class="exam-title" id="exam-title">考试名称</h1>
+                        <div class="exam-meta">
+                            <span class="exam-status-badge" id="exam-status-badge">进行中</span>
+                            <span class="exam-duration">
+                                <span class="material-symbols-outlined" style="font-size: 14px;">schedule</span>
+                                <span id="exam-duration-text">180 min</span>
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- Problem List -->
+                    <div class="problem-list" id="problem-list">
+                        <!-- Items rendered by JS -->
+                    </div>
+
+                    <!-- Progress Stats -->
+                    <div class="progress-stats">
+                        <div class="progress-info">
+                            <span class="progress-label">总进度</span>
+                            <span class="progress-value" id="progress-value">0 / 0 pts</span>
+                        </div>
+                        <div class="progress-bar-container">
+                            <div class="progress-bar-fill" id="progress-bar-fill"></div>
+                        </div>
+                        <span class="progress-percent" id="progress-percent">0%</span>
+                    </div>
+                </main>
+            </div>
+        </div>
+
+        <!-- ============================================
+             VIEW: Exam Mode (Minimalist Compact)
+             ============================================ -->
+        <div class="view" id="view-exam-mode" style="display: none;">
+            <!-- Global Exam Timer Bar -->
+            <div class="global-timer-bar">
+                <div class="global-timer-left">
+                    <span class="material-symbols-outlined" style="font-size: 14px; color: var(--primary);">schedule</span>
+                    <span class="global-timer-label">全局</span>
+                </div>
+                <div class="global-timer-right">
+                    <span class="global-timer-value" id="exam-global-timer">00:00:00</span>
+                    <div class="global-progress-bar">
+                        <div class="global-progress-fill" id="exam-global-progress"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TopAppBar -->
+            <header class="top-app-bar compact">
+                <div class="app-bar-left">
+                    <span class="app-title-sm">PTA</span>
+                    <span class="exam-badge">Exam</span>
+                </div>
+                <div class="app-bar-right">
+                    <button class="icon-btn-sm" title="固定">
+                        <span class="material-symbols-outlined" style="font-size: 16px;">push_pin</span>
+                    </button>
+                    <button class="icon-btn-sm" id="exam-mode-close-btn" title="关闭">
+                        <span class="material-symbols-outlined" style="font-size: 16px;">close</span>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Main Content -->
+            <main class="exam-mode-content">
+                <!-- Current Problem Header -->
+                <div class="exam-problem-header">
+                    <div class="exam-problem-info">
+                        <p class="exam-problem-index" id="exam-problem-index">题目 1/5</p>
+                        <h3 class="exam-problem-name" id="exam-problem-name">当前题目</h3>
+                    </div>
+                    <div class="exam-problem-difficulty" id="exam-problem-difficulty">Med</div>
+                </div>
+
+                <!-- Problem Timer -->
+                <div class="exam-timer-display">
+                    <div class="exam-timer-info">
+                        <p class="exam-timer-label">题目用时</p>
+                        <div class="exam-timer-value" id="exam-timer-value">00:00:00</div>
+                    </div>
+                    <div class="exam-timer-controls">
+                        <button class="exam-ctrl-btn" id="exam-play-pause-btn" title="暂停">
+                            <span class="material-symbols-outlined">pause</span>
+                        </button>
+                        <button class="exam-ctrl-btn" id="exam-reset-btn" title="重置">
+                            <span class="material-symbols-outlined">history</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Navigation Controls -->
+                <div class="exam-nav-controls">
+                    <button class="exam-nav-btn" id="exam-prev-btn">
+                        <span class="material-symbols-outlined" style="font-size: 16px;">chevron_left</span>
+                        上一题
+                    </button>
+                    <button class="exam-nav-btn" id="exam-next-btn">
+                        下一题
+                        <span class="material-symbols-outlined" style="font-size: 16px;">chevron_right</span>
+                    </button>
+                </div>
+
+                <!-- Submit Button -->
+                <button class="exam-submit-btn" id="exam-submit-btn">
+                    <span class="material-symbols-outlined" style="font-size: 18px; font-variation-settings: 'FILL' 1;">task_alt</span>
+                    提交考试
+                </button>
+            </main>
+
+            <!-- Footer -->
+            <footer class="app-footer compact">
+                <div class="footer-status">
+                    <div class="status-dot connected"></div>
+                    <span class="status-text">已连接</span>
+                </div>
+                <span class="version-text">v2.0.0</span>
+            </footer>
+        </div>
+
+        <!-- ============================================
+             VIEW: Settings
+             ============================================ -->
+        <div class="view" id="view-settings" style="display: none;">
+            <header class="top-app-bar">
+                <div class="app-bar-left">
+                    <button class="icon-btn" id="settings-back-btn">
+                        <span class="material-symbols-outlined">arrow_back</span>
+                    </button>
+                    <span class="app-title">设置</span>
+                </div>
+                <div class="app-bar-right"></div>
+            </header>
+
+            <main class="view-content">
+                <div class="settings-content">
+                    <div class="settings-group">
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <span class="setting-label">自动开始计时</span>
+                                <span class="setting-desc">进入题目页面时自动计时</span>
+                            </div>
+                            <label class="toggle">
+                                <input type="checkbox" id="auto-start-toggle" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <span class="setting-label">倒计时提醒</span>
+                                <span class="setting-desc">剩余时间不足时发出提醒</span>
+                            </div>
+                            <label class="toggle">
+                                <input type="checkbox" id="notification-toggle" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="settings-group">
+                        <button class="btn-danger" id="clear-data-btn">
+                            <span class="material-symbols-outlined">delete</span>
+                            清除所有数据
+                        </button>
+                    </div>
+                </div>
+            </main>
+        </div>
+
+    </div>
+
+    <script src="popup.js"></script>
+</body>
+
+</html>

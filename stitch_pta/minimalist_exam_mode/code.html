@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;family=JetBrains+Mono:wght@500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-error": "#ffffff",
+                        "tertiary-fixed-dim": "#ffb3ad",
+                        "surface-tint": "#0053db",
+                        "on-surface": "#151c27",
+                        "primary-fixed-dim": "#b4c5ff",
+                        "on-tertiary-fixed": "#410004",
+                        "surface-container-highest": "#dce2f3",
+                        "on-primary-fixed-variant": "#003ea8",
+                        "on-secondary": "#ffffff",
+                        "error": "#ba1a1a",
+                        "secondary-fixed-dim": "#4edea3",
+                        "on-tertiary-container": "#ffecea",
+                        "outline-variant": "#c3c6d7",
+                        "outline": "#737686",
+                        "on-primary-container": "#eeefff",
+                        "on-tertiary-fixed-variant": "#930013",
+                        "on-surface-variant": "#434655",
+                        "on-secondary-container": "#00714d",
+                        "surface-bright": "#f9f9ff",
+                        "primary-container": "#2563eb",
+                        "inverse-surface": "#2a313d",
+                        "on-primary-fixed": "#00174b",
+                        "tertiary-fixed": "#ffdad7",
+                        "secondary-fixed": "#6ffbbe",
+                        "tertiary-container": "#cf2c30",
+                        "secondary-container": "#6cf8bb",
+                        "on-secondary-fixed-variant": "#005236",
+                        "surface-dim": "#d3daea",
+                        "primary": "#004ac6",
+                        "background": "#f9f9ff",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-variant": "#dce2f3",
+                        "on-background": "#151c27",
+                        "surface-container": "#e7eefe",
+                        "surface-container-low": "#f0f3ff",
+                        "surface": "#f9f9ff",
+                        "secondary": "#006c49",
+                        "tertiary": "#ab0b1c",
+                        "on-secondary-fixed": "#002113",
+                        "inverse-on-surface": "#ebf1ff",
+                        "on-primary": "#ffffff",
+                        "inverse-primary": "#b4c5ff",
+                        "primary-fixed": "#dbe1ff",
+                        "error-container": "#ffdad6",
+                        "on-tertiary": "#ffffff",
+                        "surface-container-high": "#e2e8f8",
+                        "on-error-container": "#93000a"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "element-gap": "8px",
+                        "section-margin": "12px",
+                        "unit": "4px",
+                        "container-padding": "16px"
+                    },
+                    "fontFamily": {
+                        "button-text": ["Inter"],
+                        "body-sm": ["Inter"],
+                        "timer-display": ["JetBrains Mono"],
+                        "label-md": ["Inter"],
+                        "timer-sm": ["JetBrains Mono"]
+                    },
+                    "fontSize": {
+                        "button-text": ["14px", {"lineHeight": "20px", "fontWeight": "600"}],
+                        "body-sm": ["12px", {"lineHeight": "16px", "fontWeight": "400"}],
+                        "timer-display": ["36px", {"lineHeight": "44px", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                        "label-md": ["14px", {"lineHeight": "20px", "fontWeight": "500"}],
+                        "timer-sm": ["18px", {"lineHeight": "24px", "fontWeight": "500"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        .code-bg {
+            background: linear-gradient(rgba(249, 249, 255, 0.92), rgba(249, 249, 255, 0.92)), url('https://images.unsplash.com/photo-1542831371-29b0f74f9713?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80');
+            background-size: cover;
+            background-position: center;
+        }
+        .ultra-compact-timer {
+            letter-spacing: -0.05em;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background min-h-screen flex items-center justify-center p-4 code-bg" data-alt="A clean light-mode productivity interface overlaying a blurred code editor background.">
+<!-- PTA Timer Plugin Container - Reduced Width for Compactness -->
+<div class="w-[320px] bg-surface-container-lowest/70 backdrop-blur-xl shadow-[0_8px_32px_rgba(0,0,0,0.08)] rounded-xl overflow-hidden border border-outline-variant/40 flex flex-col">
+<!-- Global Exam Timer - Slim Top Bar Style -->
+<div class="bg-primary/5 border-b border-outline-variant/20 px-3 py-1 flex items-center justify-between">
+<div class="flex items-center gap-1.5 overflow-hidden">
+<span class="material-symbols-outlined text-[14px] text-primary">schedule</span>
+<span class="font-label-md text-[11px] text-on-surface-variant uppercase tracking-wider whitespace-nowrap">Global</span>
+</div>
+<div class="flex items-center gap-3">
+<span class="font-timer-sm text-[13px] text-primary tabular-nums font-bold">01:59:59</span>
+<div class="w-16 bg-surface-variant h-1 rounded-full overflow-hidden">
+<div class="bg-primary h-full w-2/3"></div>
+</div>
+</div>
+</div>
+<!-- TopAppBar -->
+<header class="flex justify-between items-center px-3 py-1.5 border-b border-outline-variant/10">
+<div class="flex items-center gap-2">
+<span class="font-button-text text-[13px] font-bold text-on-surface">PTA</span>
+<span class="bg-tertiary-container/80 text-on-tertiary-container text-[9px] px-1 py-0.5 rounded font-bold uppercase">Exam</span>
+</div>
+<div class="flex items-center gap-1">
+<button class="p-1 rounded text-on-surface-variant hover:bg-surface-container-high/50 transition-colors">
+<span class="material-symbols-outlined text-[16px]">push_pin</span>
+</button>
+<button class="p-1 rounded text-on-surface-variant hover:bg-surface-container-high/50 transition-colors">
+<span class="material-symbols-outlined text-[16px]">close</span>
+</button>
+</div>
+</header>
+<!-- Main Content Area - More Compact Padding -->
+<main class="flex-1 p-3 flex flex-col gap-3">
+<!-- Current Problem Header - Compact -->
+<div class="flex items-center justify-between">
+<div class="min-w-0">
+<p class="font-label-md text-[11px] text-on-surface-variant truncate">Prob 4/12</p>
+<h3 class="font-button-text text-[13px] text-on-surface truncate leading-tight">Asynchronous Logic Flow</h3>
+</div>
+<div class="bg-secondary-container/60 text-on-secondary-container px-1.5 py-0.5 rounded font-label-md text-[10px] whitespace-nowrap ml-2">
+                    Med
+                </div>
+</div>
+<!-- Problem Individual Timer Display - Ultra-Compact Horizontal Style -->
+<div class="flex items-center justify-between p-2.5 bg-surface-container-low/50 rounded-lg border border-primary/5">
+<div class="flex flex-col">
+<p class="font-label-md text-[10px] text-on-surface-variant uppercase tracking-tighter">Prob Time</p>
+<div class="font-timer-display text-[24px] leading-none text-on-surface tabular-nums ultra-compact-timer">
+                        00:12:45
+                    </div>
+</div>
+<div class="flex gap-1.5">
+<button class="w-8 h-8 rounded-lg border border-outline-variant/30 bg-surface-container-lowest/80 flex items-center justify-center hover:bg-surface-container-high transition-colors active:scale-90">
+<span class="material-symbols-outlined text-[18px] text-on-surface-variant">pause</span>
+</button>
+<button class="w-8 h-8 rounded-lg border border-outline-variant/30 bg-surface-container-lowest/80 flex items-center justify-center hover:bg-surface-container-high transition-colors active:scale-90">
+<span class="material-symbols-outlined text-[18px] text-on-surface-variant">history</span>
+</button>
+</div>
+</div>
+<!-- Navigation Controls - Compact Height -->
+<div class="grid grid-cols-2 gap-2">
+<button class="flex items-center justify-center gap-1 border border-outline-variant/30 bg-surface-container-lowest/40 text-on-surface-variant py-1.5 rounded-lg font-button-text text-[12px] hover:bg-surface-container-high/60 transition-all active:scale-95">
+<span class="material-symbols-outlined text-[16px]">chevron_left</span>
+                    Prev
+                </button>
+<button class="flex items-center justify-center gap-1 border border-outline-variant/30 bg-surface-container-lowest/40 text-on-surface-variant py-1.5 rounded-lg font-button-text text-[12px] hover:bg-surface-container-high/60 transition-all active:scale-95">
+                    Next
+                    <span class="material-symbols-outlined text-[16px]">chevron_right</span>
+</button>
+</div>
+<!-- Submit Action - High Transparency primary -->
+<button class="w-full bg-primary/90 text-on-primary py-2 rounded-lg font-button-text text-[13px] shadow-sm hover:brightness-110 transition-all active:scale-[0.98] flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 1;">task_alt</span>
+                Submit Exam
+            </button>
+</main>
+<!-- Footer Stats - Minimal -->
+<footer class="bg-surface-container/30 px-3 py-1 flex justify-between items-center border-t border-outline-variant/10">
+<div class="flex items-center gap-1.5">
+<div class="w-1.5 h-1.5 rounded-full bg-secondary"></div>
+<span class="font-body-sm text-[10px] text-on-surface-variant">Connected</span>
+</div>
+<span class="font-body-sm text-[10px] text-on-surface-variant/60 italic">v2.4.0</span>
+</footer>
+</div>
+<!-- Background Code Editor Elements (Reduced opacity to emphasize transparency) -->
+<div class="fixed inset-0 -z-10 opacity-10 pointer-events-none overflow-hidden hidden md:block">
+<div class="absolute top-10 left-10 text-on-surface-variant font-timer-sm text-timer-sm opacity-20">
+<pre>function solve(problem) {<br/>  const time = problem.limit;<br/>  return process(time);<br/>}</pre>
+</div>
+<div class="absolute bottom-20 right-20 text-on-surface-variant font-timer-sm text-timer-sm opacity-20 text-right">
+<pre>import { Timer } from "@pta/core";<br/>const exam = new Exam();<br/>exam.start();</pre>
+</div>
+</div>
+</body></html>

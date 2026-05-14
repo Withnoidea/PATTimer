@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>PTA Timer - Ultra Compact</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@500;600&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+            vertical-align: middle;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f2f5;
+            background-image: radial-gradient(#d1d5db 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-secondary-fixed-variant": "#005236",
+                        "surface-tint": "#0053db",
+                        "secondary-container": "#6cf8bb",
+                        "surface-container-low": "#f0f3ff",
+                        "surface-container-high": "#e2e8f8",
+                        "primary-fixed-dim": "#b4c5ff",
+                        "on-primary-fixed-variant": "#003ea8",
+                        "on-error": "#ffffff",
+                        "primary-fixed": "#dbe1ff",
+                        "tertiary-fixed-dim": "#ffb3ad",
+                        "surface": "#f9f9ff",
+                        "secondary-fixed-dim": "#4edea3",
+                        "on-secondary-fixed": "#002113",
+                        "on-tertiary": "#ffffff",
+                        "outline-variant": "#c3c6d7",
+                        "inverse-on-surface": "#ebf1ff",
+                        "tertiary-container": "#cf2c30",
+                        "on-background": "#151c27",
+                        "secondary-fixed": "#6ffbbe",
+                        "error": "#ba1a1a",
+                        "primary-container": "#2563eb",
+                        "on-primary-container": "#eeefff",
+                        "on-tertiary-fixed-variant": "#930013",
+                        "on-surface-variant": "#434655",
+                        "on-primary": "#ffffff",
+                        "surface-dim": "#d3daea",
+                        "on-tertiary-container": "#ffecea",
+                        "tertiary-fixed": "#ffdad7",
+                        "surface-variant": "#dce2f3",
+                        "primary": "#004ac6",
+                        "surface-container-lowest": "#ffffff",
+                        "on-error-container": "#93000a",
+                        "inverse-primary": "#b4c5ff",
+                        "surface-container-highest": "#dce2f3",
+                        "on-secondary": "#ffffff",
+                        "on-tertiary-fixed": "#410004",
+                        "on-surface": "#151c27",
+                        "outline": "#737686",
+                        "secondary": "#006c49",
+                        "surface-container": "#e7eefe",
+                        "on-primary-fixed": "#00174b",
+                        "background": "#f9f9ff",
+                        "on-secondary-container": "#00714d",
+                        "surface-bright": "#f9f9ff",
+                        "error-container": "#ffdad6",
+                        "tertiary": "#ab0b1c",
+                        "inverse-surface": "#2a313d"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "section-margin": "4px",
+                        "container-padding": "8px",
+                        "unit": "2px",
+                        "element-gap": "2px"
+                    },
+                    "fontFamily": {
+                        "timer-sm": ["JetBrains Mono"],
+                        "label-md": ["Inter"],
+                        "body-sm": ["Inter"],
+                        "timer-display": ["JetBrains Mono"],
+                        "button-text": ["Inter"]
+                    },
+                    "fontSize": {
+                        "timer-sm": ["12px", {"lineHeight": "16px", "fontWeight": "500"}],
+                        "label-md": ["10px", {"lineHeight": "12px", "fontWeight": "500"}],
+                        "body-sm": ["10px", {"lineHeight": "12px", "fontWeight": "400"}],
+                        "timer-display": ["20px", {"lineHeight": "24px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                        "button-text": ["11px", {"lineHeight": "14px", "fontWeight": "600"}]
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="min-h-screen flex items-center justify-center p-8 bg-surface">
+<!-- PTA Timer Widget Canvas -->
+<div class="relative w-[450px] h-[60px] flex items-center justify-center">
+<!-- Background Simulation Overlay (Simulating underlying content) -->
+<div class="absolute -z-10 inset-0 w-[600px] h-[300px] -translate-x-[75px] -translate-y-[120px] bg-white/60 rounded-xl shadow-2xl border border-outline-variant/30 overflow-hidden">
+<div class="p-4 border-b border-outline-variant/20 flex items-center gap-2">
+<div class="w-2.5 h-2.5 rounded-full bg-error/20"></div>
+<div class="w-2.5 h-2.5 rounded-full bg-secondary/20"></div>
+<div class="w-2.5 h-2.5 rounded-full bg-primary/20"></div>
+</div>
+<div class="p-6">
+<div class="h-2 w-48 bg-surface-container-high/40 rounded mb-3"></div>
+<div class="h-2 w-64 bg-surface-container-high/40 rounded mb-3"></div>
+<div class="h-2 w-56 bg-surface-container-high/40 rounded mb-3"></div>
+<div class="h-2 w-72 bg-surface-container-high/40 rounded mb-3"></div>
+</div>
+</div>
+<!-- Ultra-Compact Slim Timer Widget -->
+<div class="w-auto min-w-[360px] h-[44px] bg-white/40 backdrop-blur-xl border border-white/50 shadow-[0_2px_12px_rgba(0,0,0,0.06)] rounded-lg overflow-hidden flex items-center ring-1 ring-black/5">
+<!-- Left Branding & Subtle Status -->
+<div class="flex items-center gap-2 px-3 py-1 border-r border-black/5 h-full">
+<div class="flex flex-col">
+<div class="flex items-center gap-1">
+<div class="w-1 h-1 rounded-full bg-secondary shadow-[0_0_4px_rgba(0,108,73,0.4)]"></div>
+<span class="font-button-text text-[10px] font-bold text-on-surface/80 uppercase tracking-widest">PTA</span>
+</div>
+<div class="flex items-center gap-1 opacity-50">
+<span class="font-label-md text-[8px] uppercase tracking-tighter">L1-001</span>
+<span class="text-[8px]">•</span>
+<span class="font-label-md text-[8px] uppercase tracking-tighter text-secondary font-medium">FOCUS</span>
+</div>
+</div>
+</div>
+<!-- Central Display & Controls -->
+<div class="flex items-center flex-1 px-3 gap-3 h-full relative">
+<!-- Compact Display -->
+<div class="flex items-baseline gap-1">
+<span class="font-timer-display text-[18px] text-primary tabular-nums">00:42:15</span>
+</div>
+<!-- Vertical Divider (Subtle) -->
+<div class="h-5 w-px bg-black/5"></div>
+<!-- Mini Controls Cluster -->
+<div class="flex items-center gap-1">
+<!-- Pause/Play -->
+<button class="w-7 h-7 flex items-center justify-center bg-primary text-on-primary rounded-md hover:bg-primary/90 transition-all active:scale-95 shadow-sm">
+<span class="material-symbols-outlined text-[16px]" style="font-variation-settings: 'FILL' 1;">pause</span>
+</button>
+<!-- Reset -->
+<button class="w-7 h-7 flex items-center justify-center text-on-surface-variant hover:bg-black/5 rounded-md transition-all active:scale-95">
+<span class="material-symbols-outlined text-[16px]">replay</span>
+</button>
+<!-- Stop -->
+<button class="w-7 h-7 flex items-center justify-center text-on-surface-variant hover:text-error hover:bg-error-container/20 rounded-md transition-all active:scale-95">
+<span class="material-symbols-outlined text-[16px]" style="font-variation-settings: 'FILL' 1;">stop</span>
+</button>
+</div>
+<!-- Slim Bottom Progress Indicator -->
+<div class="absolute bottom-0 left-0 right-0 h-[2px] bg-black/5">
+<div class="h-full bg-secondary-fixed-dim w-[70%] shadow-[0_0_4px_rgba(78,222,163,0.3)]"></div>
+</div>
+</div>
+<!-- Right Actions Cluster -->
+<div class="flex items-center gap-0.5 border-l border-black/5 px-2 h-full">
+<button class="w-7 h-7 flex items-center justify-center rounded-md text-on-surface-variant/50 hover:text-on-surface hover:bg-black/5 transition-colors">
+<span class="material-symbols-outlined text-[14px]">push_pin</span>
+</button>
+<button class="w-7 h-7 flex items-center justify-center rounded-md text-on-surface-variant/50 hover:text-on-surface hover:bg-black/5 transition-colors">
+<span class="material-symbols-outlined text-[14px]">settings</span>
+</button>
+</div>
+</div>
+</div>
+</body></html>

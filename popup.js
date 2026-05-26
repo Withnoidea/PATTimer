@@ -10,6 +10,7 @@ document.addEventListener('DOMContentLoaded', function () {
   let examData = []; // Loaded exam sessions
   let currentExam = null; // Currently selected exam
   let currentProblemIndex = 0; // Current problem in exam mode
+  let pendingDeleteSessionIndex = null;
 
   // ============================================
   // Views
@@ -25,8 +26,6 @@ document.addEventListener('DOMContentLoaded', function () {
   // ============================================
   // DOM References - Timer View
   // ============================================
-  const problemSubtitle = document.getElementById('problem-subtitle');
-  const problemTitle = document.getElementById('problem-title');
   const timerValue = document.getElementById('timer-value');
   const playPauseBtn = document.getElementById('play-pause-btn');
   const resetBtn = document.getElementById('reset-btn');
@@ -40,6 +39,9 @@ document.addEventListener('DOMContentLoaded', function () {
   const statusText = document.getElementById('status-text');
   const navExamsBtn = document.getElementById('nav-exams-btn');
   const settingsBtn = document.getElementById('settings-btn');
+  const deleteConfirmOverlay = document.getElementById('delete-confirm-overlay');
+  const deleteConfirmCancel = document.getElementById('delete-confirm-cancel');
+  const deleteConfirmOk = document.getElementById('delete-confirm-ok');
 
   // DOM References - Exam List View
   const examListBackBtn = document.getElementById('exam-list-back-btn');
@@ -95,15 +97,14 @@ document.addEventListener('DOMContentLoaded', function () {
   examModeCloseBtn.addEventListener('click', () => switchView('timer'));
 
   // Timer View Events
-  playPauseBtn.addEventListener('click', togglePlayPause);
-  resetBtn.addEventListener('click', resetTimer);
-  countdownBtn.addEventListener('click', toggleCountdownInput);
-  startCountdownBtn.addEventListener('click', startCountdown);
-  cancelCountdownBtn.addEventListener('click', () => {
+  playPauseBtn?.addEventListener('click', togglePlayPause);
+  resetBtn?.addEventListener('click', resetTimer);
+  countdownBtn?.addEventListener('click', toggleCountdownInput);
+  startCountdownBtn?.addEventListener('click', startCountdown);
+  cancelCountdownBtn?.addEventListener('click', () => {
     countdownInputSection.style.display = 'none';
-    countdownVisible = false;
   });
-  countdownInput.addEventListener('keydown', (e) => {
+  countdownInput?.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') startCountdown();
   });
 
@@ -116,6 +117,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
   // Settings Events
   clearDataBtn.addEventListener('click', clearData);
+  deleteConfirmCancel.addEventListener('click', closeDeleteConfirm);
+  deleteConfirmOk.addEventListener('click', confirmDeleteSession);
+  deleteConfirmOverlay.addEventListener('click', (e) => {
+    if (e.target === deleteConfirmOverlay) closeDeleteConfirm();
+  });
 
   // Search
   examSearchInput.addEventListener('input', renderExamList);
@@ -179,18 +185,15 @@ document.addEventListener('DOMContentLoaded', function () {
       if (timerData.isRunning && timerData.currentSession) {
         const currentTime = getElapsedTime(timerData);
         const timeStr = formatTime(currentTime);
-        timerValue.textContent = timeStr;
+        if (timerValue) timerValue.textContent = timeStr;
         if (examTimerValue) examTimerValue.textContent = timeStr;
-        problemTitle.textContent = timerData.currentSession.problemName || timerData.currentSession.problemId || '计时中...';
-        problemSubtitle.textContent = timerData.currentSession.problemId || '当前题目';
         updatePlayPauseIcons(timerData.isPaused);
-      } else {
-        if (currentView === 'timer') {
+      } else if (currentView === 'timer') {
+        if (timerValue) {
           timerValue.textContent = '00:00:00';
-          problemTitle.textContent = '等待检测...';
-          problemSubtitle.textContent = '当前题目';
-          updatePlayPauseIcons(false);
+          timerValue.classList.remove('warning', 'danger');
         }
+        updatePlayPauseIcons(false);
       }
 
       updateSessionsList(timerData.sessions || []);
@@ -212,21 +215,21 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (remaining > 0) {
           const timeStr = formatCountdownTime(remaining);
-          timerValue.textContent = timeStr;
+          if (timerValue) timerValue.textContent = timeStr;
           if (examTimerValue) examTimerValue.textContent = timeStr;
 
           const minutes = Math.floor(remaining / 60000);
-          timerValue.classList.remove('warning', 'danger');
+          timerValue?.classList.remove('warning', 'danger');
           if (examTimerValue) examTimerValue.classList.remove('warning', 'danger');
           if (minutes <= 5) {
-            timerValue.classList.add('danger');
+            timerValue?.classList.add('danger');
             if (examTimerValue) examTimerValue.classList.add('danger');
           } else if (minutes <= 10) {
-            timerValue.classList.add('warning');
+            timerValue?.classList.add('warning');
             if (examTimerValue) examTimerValue.classList.add('warning');
           }
         } else {
-          timerValue.classList.remove('warning', 'danger');
+          timerValue?.classList.remove('warning', 'danger');
           if (examTimerValue) examTimerValue.classList.remove('warning', 'danger');
         }
       }
@@ -292,8 +295,10 @@ document.addEventListener('DOMContentLoaded', function () {
               chrome.runtime.sendMessage({ action: 'stopTimer' });
               chrome.storage.local.remove(['countdownData']);
             }
-            timerValue.textContent = '00:00:00';
-            timerValue.classList.remove('warning', 'danger');
+            if (timerValue) {
+              timerValue.textContent = '00:00:00';
+              timerValue.classList.remove('warning', 'danger');
+            }
             if (examTimerValue) {
               examTimerValue.textContent = '00:00:00';
               examTimerValue.classList.remove('warning', 'danger');
@@ -307,12 +312,14 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   function toggleCountdownInput() {
+    if (!countdownInputSection || !countdownInput) return;
     countdownVisible = !countdownVisible;
     countdownInputSection.style.display = countdownVisible ? 'block' : 'none';
     if (countdownVisible) countdownInput.focus();
   }
 
   function startCountdown() {
+    if (!countdownInput || !countdownInputSection) return;
     const duration = parseInt(countdownInput.value);
     if (duration && duration > 0) {
       chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
@@ -525,7 +532,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const recentSessions = sessions
       .map((session, sessionIndex) => ({ session, sessionIndex }))
-      .slice(-5)
       .reverse();
     sessionsList.innerHTML = '';
     recentSessions.forEach(({ session, sessionIndex }, index) => {
@@ -594,8 +600,23 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   function deleteSession(sessionIndex) {
-    if (!confirm('确定要删除这条记录吗？')) return;
+    pendingDeleteSessionIndex = sessionIndex;
+    deleteConfirmOverlay.classList.add('visible');
+    deleteConfirmOverlay.setAttribute('aria-hidden', 'false');
+    deleteConfirmOk.focus();
+  }
 
+  function closeDeleteConfirm() {
+    pendingDeleteSessionIndex = null;
+    deleteConfirmOverlay.classList.remove('visible');
+    deleteConfirmOverlay.setAttribute('aria-hidden', 'true');
+  }
+
+  function confirmDeleteSession() {
+    if (pendingDeleteSessionIndex === null) return;
+
+    const sessionIndex = pendingDeleteSessionIndex;
+    closeDeleteConfirm();
     chrome.runtime.sendMessage({ action: 'deleteSession', sessionIndex: sessionIndex }, () => {
       if (chrome.runtime.lastError) return;
       updateTimerDisplay();
@@ -612,11 +633,11 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   function updatePlayPauseIcons(paused) {
-    const icon = playPauseBtn.querySelector('.material-symbols-outlined');
-    const examIcon = examPlayPauseBtn.querySelector('.material-symbols-outlined');
-    icon.textContent = paused ? 'play_arrow' : 'pause';
+    const icon = playPauseBtn?.querySelector('.material-symbols-outlined');
+    const examIcon = examPlayPauseBtn?.querySelector('.material-symbols-outlined');
+    if (icon) icon.textContent = paused ? 'play_arrow' : 'pause';
     if (examIcon) examIcon.textContent = paused ? 'play_arrow' : 'pause';
-    playPauseBtn.title = paused ? '继续' : '暂停';
+    if (playPauseBtn) playPauseBtn.title = paused ? '继续' : '暂停';
     if (examPlayPauseBtn) examPlayPauseBtn.title = paused ? '继续' : '暂停';
   }
 

@@ -14,7 +14,7 @@
     <div class="plugin-container">
 
         <!-- ============================================
-             VIEW: Timer (Default)
+             VIEW: History (Default)
              ============================================ -->
         <div class="view" id="view-timer">
             <!-- TopAppBar -->
@@ -36,47 +36,20 @@
             </header>
 
             <!-- Main Content -->
-            <main class="view-content">
-                <!-- Problem Header -->
-                <div class="problem-header">
-                    <div class="problem-info">
-                        <p class="problem-subtitle" id="problem-subtitle">当前题目</p>
-                        <h3 class="problem-title" id="problem-title">等待检测...</h3>
+            <main class="view-content history-content">
+                <section class="history-hero">
+                    <div>
+                        <p class="history-eyebrow">学习历史</p>
+                        <h1 class="history-title">历史记录</h1>
                     </div>
-                </div>
-
-                <!-- Timer Display -->
-                <div class="timer-display-section">
-                    <div class="timer-display-wrapper">
-                        <p class="timer-label">题目用时</p>
-                        <div class="timer-value" id="timer-value">00:00:00</div>
-                    </div>
-                    <div class="timer-controls">
-                        <button class="control-btn" id="play-pause-btn" title="暂停">
-                            <span class="material-symbols-outlined">pause</span>
-                        </button>
-                        <button class="control-btn" id="reset-btn" title="重置">
-                            <span class="material-symbols-outlined">history</span>
-                        </button>
-                        <button class="control-btn countdown-btn" id="countdown-btn" title="倒计时">
-                            <span class="material-symbols-outlined">timer</span>
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Countdown Input -->
-                <div class="countdown-input-section" id="countdown-input-section" style="display: none;">
-                    <div class="countdown-input-row">
-                        <input type="number" class="countdown-input" id="countdown-input" placeholder="分钟" min="1" max="999">
-                        <button class="btn-primary-sm" id="start-countdown-btn">开始</button>
-                        <button class="btn-cancel-sm" id="cancel-countdown-btn">取消</button>
-                    </div>
-                </div>
+                    <span class="history-hero-icon material-symbols-outlined">history</span>
+                </section>
 
                 <!-- Sessions List -->
-                <div class="quick-stats">
-                    <div class="stats-header">
-                        <span class="stats-label">最近记录</span>
+                <div class="quick-stats history-panel">
+                    <div class="stats-header history-stats-header">
+                        <span class="stats-label">做题记录</span>
+                        <span class="stats-hint">按时间倒序排列</span>
                     </div>
                     <div class="sessions-list" id="sessions-list">
                         <div class="empty-state">
@@ -134,8 +107,8 @@
             <!-- Footer: Return to Timer -->
             <footer class="exam-list-footer">
                 <button class="btn-return-timer" id="return-timer-btn">
-                    <span class="material-symbols-outlined">timer</span>
-                    返回计时器
+                    <span class="material-symbols-outlined">history</span>
+                    返回历史记录
                 </button>
             </footer>
         </div>
@@ -353,6 +326,21 @@
             </main>
         </div>
 
+        <div class="confirm-overlay" id="delete-confirm-overlay" aria-hidden="true">
+            <div class="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="delete-confirm-title">
+                <div class="confirm-icon">
+                    <span class="material-symbols-outlined">delete</span>
+                </div>
+                <div class="confirm-copy">
+                    <h2 class="confirm-title" id="delete-confirm-title">删除这条记录？</h2>
+                    <p class="confirm-message">删除后无法恢复，确定要继续吗？</p>
+                </div>
+                <div class="confirm-actions">
+                    <button class="confirm-btn confirm-cancel" id="delete-confirm-cancel">取消</button>
+                    <button class="confirm-btn confirm-delete" id="delete-confirm-ok">删除</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script src="popup.js"></script>

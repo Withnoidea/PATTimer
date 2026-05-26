@@ -311,6 +311,171 @@ body {
 .icon-empty { font-size: 32px !important; color: var(--outline-variant); }
 .empty-text { font-size: 12px; color: var(--outline); }
 
+.history-content {
+    gap: 14px;
+    background:
+        radial-gradient(circle at top right, rgba(37, 99, 235, 0.12), transparent 34%),
+        var(--surface-container-lowest);
+}
+.history-hero {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px;
+    background: linear-gradient(135deg, var(--primary), var(--primary-container));
+    border-radius: var(--radius-xl);
+    color: var(--on-primary);
+    box-shadow: 0 12px 28px rgba(0, 74, 198, 0.18);
+}
+.history-eyebrow {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    opacity: 0.82;
+}
+.history-title {
+    margin-top: 4px;
+    font-size: 24px;
+    font-weight: 800;
+    letter-spacing: -0.04em;
+}
+.history-hero-icon {
+    width: 44px;
+    height: 44px;
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-lg);
+    background: rgba(255, 255, 255, 0.16);
+    font-size: 26px !important;
+}
+.history-panel {
+    padding: 12px;
+    background: rgba(255, 255, 255, 0.72);
+    border: 1px solid rgba(195, 198, 215, 0.28);
+    border-radius: var(--radius-xl);
+    box-shadow: 0 10px 30px rgba(21, 28, 39, 0.05);
+}
+.history-stats-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+.stats-hint {
+    font-size: 10px;
+    color: rgba(67, 70, 85, 0.66);
+}
+.history-panel .sessions-list {
+    gap: 8px;
+}
+.history-panel .session-item {
+    padding: 12px;
+    background: rgba(240, 243, 255, 0.72);
+    border-color: rgba(195, 198, 215, 0.22);
+    border-radius: var(--radius-lg);
+}
+.history-panel .session-item:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 18px rgba(21, 28, 39, 0.06);
+}
+.history-panel .session-delete-btn {
+    opacity: 1;
+    background: rgba(255, 255, 255, 0.64);
+}
+.confirm-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(21, 28, 39, 0.36);
+    backdrop-filter: blur(8px);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.18s ease;
+}
+.confirm-overlay.visible {
+    opacity: 1;
+    pointer-events: auto;
+}
+.confirm-dialog {
+    width: 100%;
+    padding: 22px;
+    background: var(--surface-container-lowest);
+    border: 1px solid rgba(195, 198, 215, 0.55);
+    border-radius: var(--radius-xl);
+    box-shadow: 0 24px 60px rgba(21, 28, 39, 0.22);
+    transform: translateY(8px) scale(0.98);
+    transition: transform 0.18s ease;
+}
+.confirm-overlay.visible .confirm-dialog {
+    transform: translateY(0) scale(1);
+}
+.confirm-icon {
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 14px;
+    border-radius: var(--radius-lg);
+    background: var(--error-container);
+    color: var(--on-error-container);
+}
+.confirm-icon .material-symbols-outlined {
+    font-size: 26px;
+}
+.confirm-title {
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--on-surface);
+    letter-spacing: -0.03em;
+}
+.confirm-message {
+    margin-top: 6px;
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--on-surface-variant);
+}
+.confirm-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 18px;
+}
+.confirm-btn {
+    height: 40px;
+    border: none;
+    border-radius: var(--radius-lg);
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+.confirm-btn:active {
+    transform: scale(0.97);
+}
+.confirm-cancel {
+    background: var(--surface-container-low);
+    color: var(--on-surface-variant);
+}
+.confirm-cancel:hover {
+    background: var(--surface-container-high);
+}
+.confirm-delete {
+    background: var(--error);
+    color: #fff;
+    box-shadow: 0 8px 16px rgba(186, 26, 26, 0.18);
+}
+.confirm-delete:hover {
+    filter: brightness(1.06);
+}
+
 /* Footer */
 .app-footer {
     display: flex; align-items: center; justify-content: space-between;

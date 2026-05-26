@@ -177,17 +177,19 @@ document.addEventListener('DOMContentLoaded', function () {
       statusText.textContent = '已连接';
 
       if (timerData.isRunning && timerData.currentSession) {
-        const currentTime = Date.now() - timerData.currentSession.startTime;
+        const currentTime = getElapsedTime(timerData);
         const timeStr = formatTime(currentTime);
         timerValue.textContent = timeStr;
         if (examTimerValue) examTimerValue.textContent = timeStr;
-        problemTitle.textContent = timerData.currentSession.problemId || '计时中...';
-        problemSubtitle.textContent = '当前题目';
+        problemTitle.textContent = timerData.currentSession.problemName || timerData.currentSession.problemId || '计时中...';
+        problemSubtitle.textContent = timerData.currentSession.problemId || '当前题目';
+        updatePlayPauseIcons(timerData.isPaused);
       } else {
         if (currentView === 'timer') {
           timerValue.textContent = '00:00:00';
           problemTitle.textContent = '等待检测...';
           problemSubtitle.textContent = '当前题目';
+          updatePlayPauseIcons(false);
         }
       }
 
@@ -266,34 +268,41 @@ document.addEventListener('DOMContentLoaded', function () {
   // Timer Controls
   // ============================================
   function togglePlayPause() {
-    chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
-      if (tabs[0]) {
-        chrome.tabs.sendMessage(tabs[0].id, { action: 'togglePlayPause' });
-      }
+    chrome.runtime.sendMessage({ action: 'togglePauseTimer' }, (response) => {
+      if (chrome.runtime.lastError || !response?.success) return;
+      updatePlayPauseIcons(response.timerData.isPaused);
+      chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
+        if (tabs[0]) {
+          chrome.tabs.sendMessage(tabs[0].id, {
+            action: 'syncPauseState',
+            isPaused: response.timerData.isPaused
+          });
+        }
+      });
+      updateTimerDisplay();
     });
-    const icon = playPauseBtn.querySelector('.material-symbols-outlined');
-    const examIcon = examPlayPauseBtn.querySelector('.material-symbols-outlined');
-    if (icon.textContent === 'pause') {
-      icon.textContent = 'play_arrow';
-      examIcon.textContent = 'play_arrow';
-    } else {
-      icon.textContent = 'pause';
-      examIcon.textContent = 'pause';
-    }
   }
 
   function resetTimer() {
     if (confirm('确定要重置当前计时吗？')) {
-      chrome.runtime.sendMessage({ action: 'stopTimer' });
-      chrome.storage.local.remove(['countdownData']);
-      timerValue.textContent = '00:00:00';
-      timerValue.classList.remove('warning', 'danger');
-      if (examTimerValue) {
-        examTimerValue.textContent = '00:00:00';
-        examTimerValue.classList.remove('warning', 'danger');
-      }
-      const icon = playPauseBtn.querySelector('.material-symbols-outlined');
-      icon.textContent = 'pause';
+      chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
+        if (tabs[0]) {
+          chrome.tabs.sendMessage(tabs[0].id, { action: 'resetTimer' }, () => {
+            if (chrome.runtime.lastError) {
+              chrome.runtime.sendMessage({ action: 'stopTimer' });
+              chrome.storage.local.remove(['countdownData']);
+            }
+            timerValue.textContent = '00:00:00';
+            timerValue.classList.remove('warning', 'danger');
+            if (examTimerValue) {
+              examTimerValue.textContent = '00:00:00';
+              examTimerValue.classList.remove('warning', 'danger');
+            }
+            updatePlayPauseIcons(false);
+            setTimeout(updateTimerDisplay, 100);
+          });
+        }
+      });
     }
   }
 
@@ -391,7 +400,7 @@ document.addEventListener('DOMContentLoaded', function () {
       }
       groups[key].problems.push({
         id: s.problemId,
-        name: s.problemId,
+        name: s.problemName || s.problemId,
         duration: s.duration,
         difficulty: ''
       });
@@ -514,21 +523,57 @@ document.addEventListener('DOMContentLoaded', function () {
       return;
     }
 
-    const recentSessions = sessions.slice(-5).reverse();
+    const recentSessions = sessions
+      .map((session, sessionIndex) => ({ session, sessionIndex }))
+      .slice(-5)
+      .reverse();
     sessionsList.innerHTML = '';
-    recentSessions.forEach((session, index) => {
+    recentSessions.forEach(({ session, sessionIndex }, index) => {
       const item = document.createElement('div');
       item.className = 'session-item';
-      item.innerHTML = `
-        <div class="session-item-left">
-          <div class="session-number">${String(recentSessions.length - index).padStart(2, '0')}</div>
-          <div class="session-info">
-            <div class="session-problem-id">${session.problemId || '未知题目'}</div>
-            <div class="session-date">${formatSessionDate(session.endTime)}</div>
-          </div>
-        </div>
-        <span class="session-time">${formatTime(session.duration)}</span>
-      `;
+
+      const left = document.createElement('div');
+      left.className = 'session-item-left';
+
+      const number = document.createElement('div');
+      number.className = 'session-number';
+      number.textContent = String(recentSessions.length - index).padStart(2, '0');
+
+      const info = document.createElement('div');
+      info.className = 'session-info';
+
+      const name = document.createElement('div');
+      name.className = 'session-problem-id';
+      name.textContent = session.problemName || session.problemId || '未知题目';
+
+      const date = document.createElement('div');
+      date.className = 'session-date';
+      date.textContent = `${formatSessionDate(session.endTime)} · ${session.problemId || '未知 ID'}`;
+
+      const right = document.createElement('div');
+      right.className = 'session-item-right';
+
+      const time = document.createElement('span');
+      time.className = 'session-time';
+      time.textContent = formatTime(session.duration);
+
+      const deleteBtn = document.createElement('button');
+      deleteBtn.className = 'session-delete-btn';
+      deleteBtn.title = '删除记录';
+      deleteBtn.innerHTML = '<span class="material-symbols-outlined">delete</span>';
+      deleteBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        deleteSession(sessionIndex);
+      });
+
+      info.appendChild(name);
+      info.appendChild(date);
+      left.appendChild(number);
+      left.appendChild(info);
+      right.appendChild(time);
+      right.appendChild(deleteBtn);
+      item.appendChild(left);
+      item.appendChild(right);
       sessionsList.appendChild(item);
     });
   }
@@ -538,7 +583,7 @@ document.addEventListener('DOMContentLoaded', function () {
   // ============================================
   function clearData() {
     if (confirm('确定要清除所有数据吗？此操作不可恢复！')) {
-      chrome.storage.local.clear(() => {
+      chrome.runtime.sendMessage({ action: 'clearAllData' }, () => {
         examData = [];
         currentExam = null;
         currentProblemIndex = 0;
@@ -548,9 +593,33 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   }
 
+  function deleteSession(sessionIndex) {
+    if (!confirm('确定要删除这条记录吗？')) return;
+
+    chrome.runtime.sendMessage({ action: 'deleteSession', sessionIndex: sessionIndex }, () => {
+      if (chrome.runtime.lastError) return;
+      updateTimerDisplay();
+    });
+  }
+
   // ============================================
   // Utility Functions
   // ============================================
+  function getElapsedTime(timerData) {
+    if (!timerData?.currentSession) return 0;
+    const now = timerData.isPaused && timerData.pauseStartTime ? timerData.pauseStartTime : Date.now();
+    return Math.max(0, now - timerData.currentSession.startTime - (timerData.pausedDuration || 0));
+  }
+
+  function updatePlayPauseIcons(paused) {
+    const icon = playPauseBtn.querySelector('.material-symbols-outlined');
+    const examIcon = examPlayPauseBtn.querySelector('.material-symbols-outlined');
+    icon.textContent = paused ? 'play_arrow' : 'pause';
+    if (examIcon) examIcon.textContent = paused ? 'play_arrow' : 'pause';
+    playPauseBtn.title = paused ? '继续' : '暂停';
+    if (examPlayPauseBtn) examPlayPauseBtn.title = paused ? '继续' : '暂停';
+  }
+
   function formatTime(ms) {
     if (!ms || ms < 0) return '00:00:00';
     const seconds = Math.floor(ms / 1000);

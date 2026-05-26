@@ -3,65 +3,193 @@
 
 let timerData = {
   isRunning: false,
+  isPaused: false,
   startTime: null,
+  pauseStartTime: null,
+  pausedDuration: 0,
   currentSession: null,
   totalTime: 0,
   sessions: []
 };
 
+let storageLoaded = false;
+
 // Message handler
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  switch (request.action) {
-    case 'startTimer':
-      startTimer(request.problemId);
-      sendResponse({ success: true });
-      break;
-    case 'stopTimer':
-      stopTimer();
-      sendResponse({ success: true });
-      break;
-    case 'getTimerData':
-      sendResponse(timerData);
-      break;
-    case 'setCountdown':
-      setCountdown(request.duration);
-      sendResponse({ success: true });
-      break;
-    case 'getCountdown':
-      sendResponse({ countdown: countdownData });
-      break;
-  }
+  loadStoredData(() => {
+    normalizeTimerData();
+
+    switch (request.action) {
+      case 'startTimer':
+        startTimer(request.problemId, request.problemName);
+        sendResponse({ success: true });
+        break;
+      case 'stopTimer':
+        stopTimer();
+        sendResponse({ success: true });
+        break;
+      case 'togglePauseTimer':
+        sendResponse(togglePauseTimer());
+        break;
+      case 'deleteSession':
+        deleteSession(request.sessionIndex);
+        sendResponse({ success: true });
+        break;
+      case 'clearAllData':
+        clearAllData(() => sendResponse({ success: true }));
+        break;
+      case 'getTimerData':
+        sendResponse(timerData);
+        break;
+      case 'setCountdown':
+        setCountdown(request.duration);
+        sendResponse({ success: true });
+        break;
+      case 'getCountdown':
+        sendResponse({ countdown: countdownData });
+        break;
+      default:
+        sendResponse({ success: false });
+    }
+  });
   return true; // Keep message channel open for async responses
 });
 
-function startTimer(problemId) {
-  if (!timerData.isRunning) {
-    timerData.isRunning = true;
-    timerData.startTime = Date.now();
-    timerData.currentSession = {
-      problemId: problemId,
-      startTime: timerData.startTime,
-      endTime: null
-    };
-    chrome.storage.local.set({ timerData: timerData });
+function loadStoredData(callback) {
+  if (storageLoaded) {
+    callback();
+    return;
   }
+
+  chrome.storage.local.get(['timerData', 'countdownData'], (result) => {
+    if (result.timerData) {
+      timerData = { ...timerData, ...result.timerData };
+    }
+    if (result.countdownData) {
+      countdownData = result.countdownData;
+      if (countdownData.isRunning) {
+        startCountdownLoop();
+      }
+    }
+    storageLoaded = true;
+    callback();
+  });
+}
+
+function normalizeTimerData() {
+  timerData.sessions = Array.isArray(timerData.sessions) ? timerData.sessions : [];
+  timerData.isPaused = Boolean(timerData.isPaused);
+  timerData.pausedDuration = Number(timerData.pausedDuration) || 0;
+  timerData.pauseStartTime = timerData.pauseStartTime || null;
+  timerData.sessions.forEach((session) => {
+    if (!session.problemName) {
+      session.problemName = session.problemId || '未知题目';
+    }
+  });
+  if (timerData.currentSession && !timerData.currentSession.problemName) {
+    timerData.currentSession.problemName = timerData.currentSession.problemId || '计时中...';
+  }
+}
+
+function startTimer(problemId, problemName) {
+  if (timerData.isRunning && timerData.currentSession?.problemId === problemId) {
+    if (problemName && timerData.currentSession.problemName !== problemName) {
+      timerData.currentSession.problemName = problemName;
+      chrome.storage.local.set({ timerData: timerData });
+    }
+    return;
+  }
+
+  if (timerData.isRunning) {
+    stopTimer();
+  }
+
+  timerData.isRunning = true;
+  timerData.isPaused = false;
+  timerData.startTime = Date.now();
+  timerData.pauseStartTime = null;
+  timerData.pausedDuration = 0;
+  timerData.currentSession = {
+    problemId: problemId,
+    problemName: problemName || problemId,
+    startTime: timerData.startTime,
+    endTime: null
+  };
+  chrome.storage.local.set({ timerData: timerData });
 }
 
 function stopTimer() {
   if (timerData.isRunning && timerData.currentSession) {
+    const endTime = Date.now();
+    const pausedDuration = timerData.pausedDuration +
+      (timerData.isPaused && timerData.pauseStartTime ? endTime - timerData.pauseStartTime : 0);
+
     timerData.isRunning = false;
-    timerData.currentSession.endTime = Date.now();
-    timerData.currentSession.duration =
-      timerData.currentSession.endTime - timerData.currentSession.startTime;
+    timerData.isPaused = false;
+    timerData.currentSession.endTime = endTime;
+    timerData.currentSession.duration = Math.max(0, endTime - timerData.currentSession.startTime - pausedDuration);
 
     timerData.sessions.push(timerData.currentSession);
     timerData.totalTime += timerData.currentSession.duration;
 
     timerData.currentSession = null;
     timerData.startTime = null;
+    timerData.pauseStartTime = null;
+    timerData.pausedDuration = 0;
 
     chrome.storage.local.set({ timerData: timerData });
   }
+}
+
+function togglePauseTimer() {
+  if (!timerData.isRunning || !timerData.currentSession) {
+    return { success: false, timerData: timerData };
+  }
+
+  if (timerData.isPaused) {
+    timerData.pausedDuration += Date.now() - timerData.pauseStartTime;
+    timerData.pauseStartTime = null;
+    timerData.isPaused = false;
+  } else {
+    timerData.pauseStartTime = Date.now();
+    timerData.isPaused = true;
+  }
+
+  chrome.storage.local.set({ timerData: timerData });
+  return { success: true, timerData: timerData };
+}
+
+function deleteSession(sessionIndex) {
+  if (!Number.isInteger(sessionIndex) || !timerData.sessions[sessionIndex]) {
+    return;
+  }
+
+  const [session] = timerData.sessions.splice(sessionIndex, 1);
+  timerData.totalTime = Math.max(0, timerData.totalTime - (session.duration || 0));
+  chrome.storage.local.set({ timerData: timerData });
+}
+
+function clearAllData(callback) {
+  chrome.storage.local.clear(() => {
+    timerData = {
+      isRunning: false,
+      isPaused: false,
+      startTime: null,
+      pauseStartTime: null,
+      pausedDuration: 0,
+      currentSession: null,
+      totalTime: 0,
+      sessions: []
+    };
+    countdownData = {
+      isRunning: false,
+      duration: 0,
+      remaining: 0,
+      startTime: null
+    };
+    storageLoaded = true;
+    callback();
+  });
 }
 
 // Countdown

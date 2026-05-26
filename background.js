@@ -13,6 +13,8 @@ let timerData = {
 };
 
 let storageLoaded = false;
+let storageLoadInProgress = false;
+let pendingLoadCallbacks = [];
 
 // Message handler
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
@@ -25,7 +27,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         sendResponse({ success: true });
         break;
       case 'stopTimer':
-        stopTimer();
+        stopTimer(false);
+        sendResponse({ success: true });
+        break;
+      case 'completeTimer':
+        stopTimer(true);
         sendResponse({ success: true });
         break;
       case 'togglePauseTimer':
@@ -61,6 +67,12 @@ function loadStoredData(callback) {
     return;
   }
 
+  pendingLoadCallbacks.push(callback);
+  if (storageLoadInProgress) {
+    return;
+  }
+
+  storageLoadInProgress = true;
   chrome.storage.local.get(['timerData', 'countdownData'], (result) => {
     if (result.timerData) {
       timerData = { ...timerData, ...result.timerData };
@@ -72,7 +84,11 @@ function loadStoredData(callback) {
       }
     }
     storageLoaded = true;
-    callback();
+    storageLoadInProgress = false;
+
+    const callbacks = pendingLoadCallbacks;
+    pendingLoadCallbacks = [];
+    callbacks.forEach((pendingCallback) => pendingCallback());
   });
 }
 
@@ -101,7 +117,7 @@ function startTimer(problemId, problemName) {
   }
 
   if (timerData.isRunning) {
-    stopTimer();
+    stopTimer(false);
   }
 
   timerData.isRunning = true;
@@ -118,19 +134,25 @@ function startTimer(problemId, problemName) {
   chrome.storage.local.set({ timerData: timerData });
 }
 
-function stopTimer() {
+function stopTimer(saveSession) {
   if (timerData.isRunning && timerData.currentSession) {
     const endTime = Date.now();
     const pausedDuration = timerData.pausedDuration +
       (timerData.isPaused && timerData.pauseStartTime ? endTime - timerData.pauseStartTime : 0);
 
+    const completedSession = {
+      ...timerData.currentSession,
+      endTime: endTime,
+      duration: Math.max(0, endTime - timerData.currentSession.startTime - pausedDuration)
+    };
+
     timerData.isRunning = false;
     timerData.isPaused = false;
-    timerData.currentSession.endTime = endTime;
-    timerData.currentSession.duration = Math.max(0, endTime - timerData.currentSession.startTime - pausedDuration);
 
-    timerData.sessions.push(timerData.currentSession);
-    timerData.totalTime += timerData.currentSession.duration;
+    if (saveSession) {
+      timerData.sessions.push(completedSession);
+      timerData.totalTime += completedSession.duration;
+    }
 
     timerData.currentSession = null;
     timerData.startTime = null;

@@ -10,7 +10,7 @@ document.addEventListener('DOMContentLoaded', function () {
   let examData = []; // Loaded exam sessions
   let currentExam = null; // Currently selected exam
   let currentProblemIndex = 0; // Current problem in exam mode
-  let pendingDeleteSessionIndex = null;
+  let pendingConfirmAction = null;
 
   // ============================================
   // Views
@@ -39,9 +39,12 @@ document.addEventListener('DOMContentLoaded', function () {
   const statusText = document.getElementById('status-text');
   const navExamsBtn = document.getElementById('nav-exams-btn');
   const settingsBtn = document.getElementById('settings-btn');
-  const deleteConfirmOverlay = document.getElementById('delete-confirm-overlay');
-  const deleteConfirmCancel = document.getElementById('delete-confirm-cancel');
-  const deleteConfirmOk = document.getElementById('delete-confirm-ok');
+  const confirmOverlay = document.getElementById('delete-confirm-overlay');
+  const confirmCancel = document.getElementById('delete-confirm-cancel');
+  const confirmOk = document.getElementById('delete-confirm-ok');
+  const confirmTitle = document.getElementById('delete-confirm-title');
+  const confirmMessage = document.querySelector('.confirm-message');
+  const confirmIcon = document.querySelector('.confirm-icon .material-symbols-outlined');
 
   // DOM References - Exam List View
   const examListBackBtn = document.getElementById('exam-list-back-btn');
@@ -117,10 +120,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
   // Settings Events
   clearDataBtn.addEventListener('click', clearData);
-  deleteConfirmCancel.addEventListener('click', closeDeleteConfirm);
-  deleteConfirmOk.addEventListener('click', confirmDeleteSession);
-  deleteConfirmOverlay.addEventListener('click', (e) => {
-    if (e.target === deleteConfirmOverlay) closeDeleteConfirm();
+  confirmCancel.addEventListener('click', closeConfirm);
+  confirmOk.addEventListener('click', confirmPendingAction);
+  confirmOverlay.addEventListener('click', (e) => {
+    if (e.target === confirmOverlay) closeConfirm();
   });
 
   // Search
@@ -588,39 +591,69 @@ document.addEventListener('DOMContentLoaded', function () {
   // Clear Data
   // ============================================
   function clearData() {
-    if (confirm('确定要清除所有数据吗？此操作不可恢复！')) {
-      chrome.runtime.sendMessage({ action: 'clearAllData' }, () => {
-        examData = [];
-        currentExam = null;
-        currentProblemIndex = 0;
-        switchView('timer');
-        updateTimerDisplay();
+    showConfirm({
+      icon: 'delete_forever',
+      title: '清除所有数据？',
+      message: '将删除所有做题记录、倒计时和当前计时状态，此操作无法恢复。',
+      confirmText: '清除',
+      onConfirm: performClearData
+    });
+  }
+
+  function performClearData() {
+    chrome.runtime.sendMessage({ action: 'clearAllData' }, () => {
+      examData = [];
+      currentExam = null;
+      currentProblemIndex = 0;
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        if (tabs[0]) {
+          chrome.tabs.sendMessage(tabs[0].id, { action: 'resetTimer' }, () => {
+            updateTimerDisplay();
+          });
+        } else {
+          updateTimerDisplay();
+        }
       });
-    }
+      switchView('timer');
+    });
   }
 
   function deleteSession(sessionIndex) {
-    pendingDeleteSessionIndex = sessionIndex;
-    deleteConfirmOverlay.classList.add('visible');
-    deleteConfirmOverlay.setAttribute('aria-hidden', 'false');
-    deleteConfirmOk.focus();
-  }
-
-  function closeDeleteConfirm() {
-    pendingDeleteSessionIndex = null;
-    deleteConfirmOverlay.classList.remove('visible');
-    deleteConfirmOverlay.setAttribute('aria-hidden', 'true');
-  }
-
-  function confirmDeleteSession() {
-    if (pendingDeleteSessionIndex === null) return;
-
-    const sessionIndex = pendingDeleteSessionIndex;
-    closeDeleteConfirm();
-    chrome.runtime.sendMessage({ action: 'deleteSession', sessionIndex: sessionIndex }, () => {
-      if (chrome.runtime.lastError) return;
-      updateTimerDisplay();
+    showConfirm({
+      icon: 'delete',
+      title: '删除这条记录？',
+      message: '删除后无法恢复，确定要继续吗？',
+      confirmText: '删除',
+      onConfirm: () => {
+        chrome.runtime.sendMessage({ action: 'deleteSession', sessionIndex: sessionIndex }, () => {
+          if (chrome.runtime.lastError) return;
+          updateTimerDisplay();
+        });
+      }
     });
+  }
+
+  function showConfirm({ icon, title, message, confirmText, onConfirm }) {
+    pendingConfirmAction = onConfirm;
+    confirmIcon.textContent = icon;
+    confirmTitle.textContent = title;
+    confirmMessage.textContent = message;
+    confirmOk.textContent = confirmText;
+    confirmOverlay.classList.add('visible');
+    confirmOverlay.setAttribute('aria-hidden', 'false');
+    confirmOk.focus();
+  }
+
+  function closeConfirm() {
+    pendingConfirmAction = null;
+    confirmOverlay.classList.remove('visible');
+    confirmOverlay.setAttribute('aria-hidden', 'true');
+  }
+
+  function confirmPendingAction() {
+    const action = pendingConfirmAction;
+    closeConfirm();
+    if (action) action();
   }
 
   // ============================================

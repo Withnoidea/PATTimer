@@ -206,7 +206,7 @@ function checkSubmissionResult() {
 
   timerCompleted = true;
   stopSubmissionResultWatcher();
-  stopProblemTimer();
+  completeProblemTimer();
   markTimerAsCompleted();
 }
 
@@ -275,6 +275,12 @@ function startProblemTimer(problemId) {
 function stopProblemTimer() {
   chrome.runtime.sendMessage({
     action: 'stopTimer'
+  });
+}
+
+function completeProblemTimer() {
+  chrome.runtime.sendMessage({
+    action: 'completeTimer'
   });
 }
 
@@ -644,6 +650,40 @@ function startCountdown(minutes) {
 }
 
 // ============================================
+// Countdown Finished Toast
+// ============================================
+function showCountdownFinishedToast() {
+  document.querySelector('.timer-finished-toast')?.remove();
+
+  const toast = document.createElement('div');
+  toast.className = 'timer-finished-toast';
+  toast.innerHTML = `
+    <div class="timer-finished-card">
+      <div class="timer-finished-icon">
+        <span class="material-symbols-outlined">timer_off</span>
+      </div>
+      <div class="timer-finished-copy">
+        <div class="timer-finished-title">倒计时结束</div>
+        <div class="timer-finished-message">时间到，记得检查当前题目状态。</div>
+      </div>
+      <button class="timer-finished-close" type="button" aria-label="关闭提醒">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+  `;
+
+  document.body.appendChild(toast);
+
+  const closeToast = () => {
+    toast.classList.add('closing');
+    setTimeout(() => toast.remove(), 180);
+  };
+
+  toast.querySelector('.timer-finished-close').addEventListener('click', closeToast);
+  setTimeout(closeToast, 8000);
+}
+
+// ============================================
 // Display Update Loop
 // ============================================
 function updateTimerDisplay() {
@@ -704,13 +744,13 @@ function updateCountdownDisplay() {
   if (remaining <= 0) {
     countdownData.isRunning = false;
 
+    showCountdownFinishedToast();
+
     if (Notification.permission === 'granted') {
       new Notification('PTA Timer', {
         body: '倒计时结束！',
         icon: chrome.runtime.getURL('icons/icon48.png')
       });
-    } else {
-      alert('倒计时结束！');
     }
 
     chrome.storage.local.remove(['countdownData']);

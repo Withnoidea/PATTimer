@@ -430,6 +430,116 @@
     background: #e2e8f8;
 }
 
+.timer-finished-toast {
+    position: fixed;
+    top: 72px;
+    right: 16px;
+    z-index: 10002;
+    animation: timerFinishedSlideIn 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.timer-finished-toast.closing {
+    animation: timerFinishedSlideOut 0.18s ease forwards;
+}
+
+.timer-finished-card {
+    min-width: 300px;
+    max-width: 360px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px;
+    background: rgba(255, 255, 255, 0.94);
+    border: 1px solid rgba(195, 198, 215, 0.55);
+    border-left: 4px solid #ab0b1c;
+    border-radius: 14px;
+    box-shadow: 0 18px 48px rgba(21, 28, 39, 0.18);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+}
+
+.timer-finished-icon {
+    width: 42px;
+    height: 42px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    border-radius: 12px;
+    background: linear-gradient(135deg, rgba(171, 11, 28, 0.14), rgba(207, 44, 48, 0.22));
+    color: #ab0b1c;
+}
+
+.timer-finished-icon .material-symbols-outlined {
+    font-size: 24px;
+    font-variation-settings: 'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 24;
+}
+
+.timer-finished-copy {
+    min-width: 0;
+    flex: 1;
+}
+
+.timer-finished-title {
+    font-size: 14px;
+    font-weight: 800;
+    color: #151c27;
+    letter-spacing: -0.02em;
+}
+
+.timer-finished-message {
+    margin-top: 3px;
+    font-size: 12px;
+    line-height: 1.45;
+    color: #434655;
+}
+
+.timer-finished-close {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: rgba(67, 70, 85, 0.65);
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.timer-finished-close:hover {
+    background: rgba(171, 11, 28, 0.08);
+    color: #ab0b1c;
+}
+
+.timer-finished-close:active {
+    transform: scale(0.92);
+}
+
+.timer-finished-close .material-symbols-outlined {
+    font-size: 18px;
+}
+
+@keyframes timerFinishedSlideIn {
+    from {
+        transform: translateX(24px) scale(0.98);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0) scale(1);
+        opacity: 1;
+    }
+}
+
+@keyframes timerFinishedSlideOut {
+    to {
+        transform: translateX(24px) scale(0.98);
+        opacity: 0;
+    }
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     #pta-timer-display {

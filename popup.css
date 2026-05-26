@@ -285,10 +285,24 @@ body {
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .session-date { font-size: 10px; color: var(--on-surface-variant); margin-top: 1px; }
+.session-item-right {
+    display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+}
 .session-time {
     font-family: 'JetBrains Mono', monospace;
     font-size: 12px; font-weight: 500; color: var(--primary); white-space: nowrap;
 }
+.session-delete-btn {
+    width: 26px; height: 26px;
+    display: flex; align-items: center; justify-content: center;
+    border: none; border-radius: var(--radius-sm);
+    background: transparent; color: var(--on-surface-variant);
+    cursor: pointer; opacity: 0;
+    transition: all 0.15s ease;
+}
+.session-item:hover .session-delete-btn { opacity: 1; }
+.session-delete-btn:hover { background: var(--error-container); color: var(--on-error-container); }
+.session-delete-btn .material-symbols-outlined { font-size: 16px; }
 .empty-state {
     display: flex; flex-direction: column;
     align-items: center; justify-content: center;

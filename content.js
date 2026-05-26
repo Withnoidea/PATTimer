@@ -14,11 +14,14 @@ let isDragging = false;
 let dragOffset = { x: 0, y: 0 };
 let isExamMode = false; // 考试模式标志
 let examStartTime = null; // 考试开始时间
-
-// MutationObserver for page changes
-const observer = new MutationObserver(() => {
-  detectProblemPage();
-});
+let timerCompleted = false;
+let lastDetectedUrl = null;
+let routeObserver = null;
+let routeCheckInterval = null;
+let routeDetectionTimer = null;
+let submissionResultObserver = null;
+let submissionResultCheckTimer = null;
+let timerDisplayUpdateTimer = null;
 
 // ============================================
 // Initialization
@@ -45,10 +48,7 @@ function init() {
   timerPauseOffset = 0;
   countdownPauseTime = 0;
 
-  observer.observe(document.body, {
-    childList: true,
-    subtree: true
-  });
+  startRouteDetection();
 }
 
 // ============================================
@@ -61,6 +61,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   } else if (request.action === 'togglePlayPause') {
     togglePlayPause();
     sendResponse({ success: true });
+  } else if (request.action === 'syncPauseState') {
+    syncPauseState(request.isPaused);
+    sendResponse({ success: true });
+  } else if (request.action === 'resetTimer') {
+    resetTimer();
+    sendResponse({ success: true });
   }
 });
 
@@ -69,6 +75,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 // ============================================
 function detectProblemPage() {
   const url = window.location.href;
+  lastDetectedUrl = url;
 
   // 检测考试模式：URL 包含 /exam/ 或 /exams/
   const wasExamMode = isExamMode;
@@ -91,17 +98,24 @@ function detectProblemPage() {
     }
   }
 
-  if (url.includes('problem')) {
-    const problemId = extractProblemId(url);
-    if (problemId && problemId !== currentProblemId) {
+  const problemId = extractProblemId(url);
+  if (problemId) {
+    if (problemId !== currentProblemId) {
       currentProblemId = problemId;
+      timerCompleted = false;
+      resetLocalTimerState();
       startProblemTimer(problemId);
       createTimerDisplay();
     }
+
+    startSubmissionResultWatcher();
+    checkSubmissionResult();
   } else {
+    stopSubmissionResultWatcher();
     if (currentProblemId) {
       stopProblemTimer();
       currentProblemId = null;
+      timerCompleted = false;
     }
     if (timerDisplay) {
       timerDisplay.style.display = 'none';
@@ -110,28 +124,141 @@ function detectProblemPage() {
 }
 
 function extractProblemId(url) {
-  let problemId = null;
-
-  const problemSetMatch = url.match(/problemSetProblemId=([^&]+)/);
-  if (problemSetMatch) {
-    problemId = problemSetMatch[1];
+  const parsedUrl = new URL(url);
+  const problemSetProblemId = parsedUrl.searchParams.get('problemSetProblemId');
+  if (problemSetProblemId) {
+    return problemSetProblemId;
   }
 
-  if (!problemId) {
-    const pathMatch = url.match(/\/problems\/([^\/\?]+)/);
-    if (pathMatch) {
-      problemId = pathMatch[1];
+  if (/\/exams?\//.test(parsedUrl.pathname)) {
+    return null;
+  }
+
+  const pathMatch = parsedUrl.pathname.match(/\/problems\/([^\/\?]+)/);
+  return pathMatch ? pathMatch[1] : null;
+}
+
+function startRouteDetection() {
+  if (!routeObserver) {
+    routeObserver = new MutationObserver(scheduleRouteDetection);
+    routeObserver.observe(document.body, {
+      childList: true
+    });
+  }
+
+  if (!routeCheckInterval) {
+    routeCheckInterval = setInterval(scheduleRouteDetection, 1000);
+  }
+}
+
+function scheduleRouteDetection() {
+  if (routeDetectionTimer || window.location.href === lastDetectedUrl) {
+    return;
+  }
+
+  routeDetectionTimer = setTimeout(() => {
+    routeDetectionTimer = null;
+    if (window.location.href !== lastDetectedUrl) {
+      detectProblemPage();
+    }
+  }, 200);
+}
+
+function startSubmissionResultWatcher() {
+  if (submissionResultObserver || timerCompleted) {
+    return;
+  }
+
+  submissionResultObserver = new MutationObserver(scheduleSubmissionResultCheck);
+  submissionResultObserver.observe(document.body, {
+    childList: true,
+    subtree: true
+  });
+}
+
+function stopSubmissionResultWatcher() {
+  if (submissionResultObserver) {
+    submissionResultObserver.disconnect();
+    submissionResultObserver = null;
+  }
+
+  if (submissionResultCheckTimer) {
+    clearTimeout(submissionResultCheckTimer);
+    submissionResultCheckTimer = null;
+  }
+}
+
+function scheduleSubmissionResultCheck() {
+  if (submissionResultCheckTimer || timerCompleted) {
+    return;
+  }
+
+  submissionResultCheckTimer = setTimeout(() => {
+    submissionResultCheckTimer = null;
+    checkSubmissionResult();
+  }, 500);
+}
+
+function checkSubmissionResult() {
+  if (timerCompleted || !isFullAcceptedSubmissionVisible()) {
+    return;
+  }
+
+  timerCompleted = true;
+  stopSubmissionResultWatcher();
+  stopProblemTimer();
+  markTimerAsCompleted();
+}
+
+function isFullAcceptedSubmissionVisible() {
+  const modalBodies = document.querySelectorAll('[data-e2e="modal-body"]');
+  for (const body of modalBodies) {
+    const modal = body.closest('[data-e2e="modal-mask"], .pc-modal') || body;
+    const title = modal.querySelector('.title_H10HL, [class*="title_"]');
+    if (!title || !title.textContent.includes('提交结果')) {
+      continue;
+    }
+
+    const text = body.textContent;
+    if (!text.includes('答案正确')) {
+      continue;
+    }
+
+    const scoreMatch = text.match(/分数\s*(\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)/);
+    if (scoreMatch && Number(scoreMatch[1]) === Number(scoreMatch[2])) {
+      return true;
     }
   }
 
-  if (!problemId) {
-    const examMatch = url.match(/\/exam\/problems\/[^\/]+\?[^=]*=([^&]+)/);
-    if (examMatch) {
-      problemId = examMatch[1];
-    }
-  }
+  return false;
+}
 
-  return problemId;
+function resetLocalTimerState() {
+  isPaused = false;
+  timerPauseTime = 0;
+  timerPauseOffset = 0;
+  countdownData = null;
+  countdownPauseTime = 0;
+  chrome.storage.local.remove(['countdownData']);
+}
+
+function markTimerAsCompleted() {
+  isPaused = true;
+  countdownData = null;
+  chrome.storage.local.remove(['countdownData']);
+
+  const btn = document.getElementById('pta-play-pause');
+  const icon = btn && btn.querySelector('.material-symbols-outlined');
+  const statusDot = document.getElementById('pta-status-dot');
+  const modeLabel = document.getElementById('pta-mode-label');
+
+  if (icon) icon.textContent = 'check';
+  if (btn) btn.title = '已完成';
+  if (statusDot) statusDot.classList.add('paused');
+  if (modeLabel) {
+    modeLabel.textContent = 'DONE';
+    modeLabel.style.color = '#16a34a';
+  }
 }
 
 // ============================================
@@ -140,7 +267,8 @@ function extractProblemId(url) {
 function startProblemTimer(problemId) {
   chrome.runtime.sendMessage({
     action: 'startTimer',
-    problemId: problemId
+    problemId: problemId,
+    problemName: getProblemName()
   });
 }
 
@@ -148,6 +276,34 @@ function stopProblemTimer() {
   chrome.runtime.sendMessage({
     action: 'stopTimer'
   });
+}
+
+function getProblemName() {
+  const title = document.querySelector('.text-darkest.font-bold.text-lg, h1, [class*="problem"] h1');
+  const text = title?.textContent?.trim();
+  return text || currentProblemId || '未知题目';
+}
+
+function getElapsedTime(timerData) {
+  if (!timerData?.currentSession) return 0;
+  const now = timerData.isPaused && timerData.pauseStartTime ? timerData.pauseStartTime : Date.now();
+  return Math.max(0, now - timerData.currentSession.startTime - (timerData.pausedDuration || 0));
+}
+
+function renderPlayPauseState(paused) {
+  const btn = document.getElementById('pta-play-pause');
+  const icon = btn && btn.querySelector('.material-symbols-outlined');
+  const statusDot = document.getElementById('pta-status-dot');
+  const modeLabel = document.getElementById('pta-mode-label');
+
+  isPaused = paused;
+  if (icon) icon.textContent = paused ? 'play_arrow' : 'pause';
+  if (btn) btn.title = paused ? '继续' : '暂停';
+  if (statusDot) statusDot.classList.toggle('paused', paused);
+  if (modeLabel && !timerCompleted) {
+    modeLabel.textContent = paused ? 'PAUSED' : (countdownData && countdownData.isRunning ? 'COUNTDOWN' : 'FOCUS');
+    modeLabel.style.color = paused ? '#d97706' : '';
+  }
 }
 
 // ============================================
@@ -241,6 +397,10 @@ function createTimerDisplay() {
   bindEvents();
 
   // Start display update loop
+  if (timerDisplayUpdateTimer) {
+    clearTimeout(timerDisplayUpdateTimer);
+    timerDisplayUpdateTimer = null;
+  }
   updateTimerDisplay();
 }
 
@@ -342,42 +502,26 @@ function toggleFix() {
 // Play/Pause
 // ============================================
 function togglePlayPause() {
-  isPaused = !isPaused;
-  const btn = document.getElementById('pta-play-pause');
-  const icon = btn.querySelector('.material-symbols-outlined');
-  const statusDot = document.getElementById('pta-status-dot');
-  const modeLabel = document.getElementById('pta-mode-label');
+  if (timerCompleted) return;
 
-  if (isPaused) {
-    icon.textContent = 'play_arrow';
-    btn.title = '继续';
-    statusDot.classList.add('paused');
-    modeLabel.textContent = 'PAUSED';
-    modeLabel.style.color = '#d97706';
-    timerPauseTime = Date.now();
+  chrome.runtime.sendMessage({ action: 'togglePauseTimer' }, (response) => {
+    if (chrome.runtime.lastError || !response?.success) return;
+    syncPauseState(response.timerData.isPaused);
+  });
+}
 
+function syncPauseState(paused) {
+  renderPlayPauseState(paused);
+
+  if (paused) {
     if (countdownData && countdownData.isRunning) {
       countdownPauseTime = Date.now();
     }
-  } else {
-    icon.textContent = 'pause';
-    btn.title = '暂停';
-    statusDot.classList.remove('paused');
-    modeLabel.textContent = countdownData && countdownData.isRunning ? 'COUNTDOWN' : 'FOCUS';
-    modeLabel.style.color = '';
-
-    if (timerPauseTime > 0) {
-      const pauseDuration = Date.now() - timerPauseTime;
-      timerPauseOffset += pauseDuration;
-      timerPauseTime = 0;
-    }
-
-    if (countdownData && countdownData.isRunning && countdownPauseTime > 0) {
-      const pauseDuration = Date.now() - countdownPauseTime;
-      countdownData.startTime += pauseDuration;
-      countdownPauseTime = 0;
-      chrome.storage.local.set({ countdownData: countdownData });
-    }
+  } else if (countdownData && countdownData.isRunning && countdownPauseTime > 0) {
+    const pauseDuration = Date.now() - countdownPauseTime;
+    countdownData.startTime += pauseDuration;
+    countdownPauseTime = 0;
+    chrome.storage.local.set({ countdownData: countdownData });
   }
 }
 
@@ -387,6 +531,8 @@ function togglePlayPause() {
 function resetTimer() {
   chrome.runtime.sendMessage({ action: 'stopTimer' });
 
+  timerCompleted = false;
+  startSubmissionResultWatcher();
   isPaused = false;
   timerPauseTime = 0;
   timerPauseOffset = 0;
@@ -502,7 +648,7 @@ function startCountdown(minutes) {
 // ============================================
 function updateTimerDisplay() {
   if (!timerDisplay || timerDisplay.style.display === 'none') {
-    setTimeout(updateTimerDisplay, 1000);
+    timerDisplayUpdateTimer = setTimeout(updateTimerDisplay, 1000);
     return;
   }
 
@@ -512,21 +658,25 @@ function updateTimerDisplay() {
     chrome.runtime.sendMessage({ action: 'getTimerData' }, (timerData) => {
       if (chrome.runtime.lastError) return;
       if (timerData && timerData.isRunning && timerData.currentSession) {
-        let currentTime;
-        if (isPaused && timerPauseTime > 0) {
-          currentTime = timerPauseTime - timerData.currentSession.startTime - timerPauseOffset;
-        } else {
-          currentTime = Date.now() - timerData.currentSession.startTime - timerPauseOffset;
+        const problemName = getProblemName();
+        if (problemName && problemName !== currentProblemId && problemName !== timerData.currentSession.problemName) {
+          chrome.runtime.sendMessage({
+            action: 'startTimer',
+            problemId: currentProblemId,
+            problemName: problemName
+          });
         }
+
+        renderPlayPauseState(timerData.isPaused);
         const timeEl = document.getElementById('pta-current-time');
         if (timeEl) {
-          timeEl.textContent = formatTime(currentTime);
+          timeEl.textContent = formatTime(getElapsedTime(timerData));
         }
       }
     });
   }
 
-  setTimeout(updateTimerDisplay, 1000);
+  timerDisplayUpdateTimer = setTimeout(updateTimerDisplay, 1000);
 }
 
 function updateCountdownDisplay() {

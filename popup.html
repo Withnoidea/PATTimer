@@ -96,6 +96,10 @@
                         <span class="material-symbols-outlined search-icon">search</span>
                         <input type="text" class="search-input" id="exam-search-input" placeholder="搜索考试...">
                     </div>
+                    <button class="btn-current-page-problems" id="load-current-page-problems-btn">
+                        <span class="material-symbols-outlined">playlist_add_check</span>
+                        从当前页面选择题目
+                    </button>
                 </div>
 
                 <!-- Scrollable Exam List -->
@@ -129,23 +133,6 @@
             </header>
 
             <div class="exam-problems-layout">
-                <!-- Side Nav -->
-                <nav class="side-nav">
-                    <div class="side-nav-logo">
-                        <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1; color: var(--primary); font-size: 28px;">timer</span>
-                    </div>
-                    <div class="side-nav-items">
-                        <div class="side-nav-item active" id="nav-item-timer">
-                            <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">timer</span>
-                            <span class="side-nav-label">Timer</span>
-                        </div>
-                        <div class="side-nav-item" id="nav-item-settings">
-                            <span class="material-symbols-outlined">settings</span>
-                            <span class="side-nav-label">Settings</span>
-                        </div>
-                    </div>
-                </nav>
-
                 <!-- Main Canvas -->
                 <main class="exam-problems-main">
                     <!-- Back to Exams -->
@@ -165,6 +152,16 @@
                                 <span class="material-symbols-outlined" style="font-size: 14px;">schedule</span>
                                 <span id="exam-duration-text">180 min</span>
                             </span>
+                        </div>
+                    </div>
+
+                    <div class="custom-exam-toolbar" id="custom-exam-toolbar" style="display: none;">
+                        <span class="custom-exam-count" id="custom-exam-count">已选择 0 题</span>
+                        <div class="custom-exam-actions">
+                            <input class="custom-exam-duration-input" id="custom-exam-duration-input" type="number" min="1" max="999" placeholder="限时/分钟">
+                            <button class="btn-text-primary" id="select-all-problems-btn">全选</button>
+                            <button class="problem-list-start-btn" id="create-custom-exam-btn">创建考试</button>
+                            <button class="btn-danger-sm" id="delete-custom-exam-btn" style="display: none;">删除考试</button>
                         </div>
                     </div>
 
@@ -236,7 +233,7 @@
                 <!-- Problem Timer -->
                 <div class="exam-timer-display">
                     <div class="exam-timer-info">
-                        <p class="exam-timer-label">题目用时</p>
+                        <p class="exam-timer-label">考试剩余</p>
                         <div class="exam-timer-value" id="exam-timer-value">00:00:00</div>
                     </div>
                     <div class="exam-timer-controls">
@@ -265,6 +262,10 @@
                 <button class="exam-submit-btn" id="exam-submit-btn">
                     <span class="material-symbols-outlined" style="font-size: 18px; font-variation-settings: 'FILL' 1;">task_alt</span>
                     提交考试
+                </button>
+                <button class="exam-cancel-btn" id="exam-cancel-btn">
+                    <span class="material-symbols-outlined" style="font-size: 18px;">close</span>
+                    取消考试
                 </button>
             </main>
 

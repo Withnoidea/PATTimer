@@ -9,8 +9,11 @@ document.addEventListener('DOMContentLoaded', function () {
   let countdownVisible = false;
   let examData = []; // Loaded exam sessions
   let currentExam = null; // Currently selected exam
+  let activeCustomExam = null;
   let currentProblemIndex = 0; // Current problem in exam mode
   let pendingConfirmAction = null;
+  let selectedProblemIds = new Set();
+  let customExamSelectionMode = false;
 
   // ============================================
   // Views
@@ -51,13 +54,21 @@ document.addEventListener('DOMContentLoaded', function () {
   const examSearchInput = document.getElementById('exam-search-input');
   const examListScroll = document.getElementById('exam-list-scroll');
   const returnTimerBtn = document.getElementById('return-timer-btn');
+  const loadCurrentPageProblemsBtn = document.getElementById('load-current-page-problems-btn');
 
   // DOM References - Exam Problems View
   const backToExamsBtn = document.getElementById('back-to-exams-btn');
   const examTitle = document.getElementById('exam-title');
   const examStatusBadge = document.getElementById('exam-status-badge');
   const examDurationText = document.getElementById('exam-duration-text');
+  const examDurationMeta = examDurationText?.closest('.exam-duration');
   const problemList = document.getElementById('problem-list');
+  const customExamToolbar = document.getElementById('custom-exam-toolbar');
+  const customExamCount = document.getElementById('custom-exam-count');
+  const customExamDurationInput = document.getElementById('custom-exam-duration-input');
+  const selectAllProblemsBtn = document.getElementById('select-all-problems-btn');
+  const createCustomExamBtn = document.getElementById('create-custom-exam-btn');
+  const deleteCustomExamBtn = document.getElementById('delete-custom-exam-btn');
   const progressValue = document.getElementById('progress-value');
   const progressBarFill = document.getElementById('progress-bar-fill');
   const progressPercent = document.getElementById('progress-percent');
@@ -74,15 +85,19 @@ document.addEventListener('DOMContentLoaded', function () {
   const examPrevBtn = document.getElementById('exam-prev-btn');
   const examNextBtn = document.getElementById('exam-next-btn');
   const examSubmitBtn = document.getElementById('exam-submit-btn');
+  const examCancelBtn = document.getElementById('exam-cancel-btn');
   const examModeCloseBtn = document.getElementById('exam-mode-close-btn');
 
   // DOM References - Settings View
   const settingsBackBtn = document.getElementById('settings-back-btn');
   const clearDataBtn = document.getElementById('clear-data-btn');
+  const autoStartToggle = document.getElementById('auto-start-toggle');
+  const notificationToggle = document.getElementById('notification-toggle');
 
   // ============================================
   // Initialize
   // ============================================
+  loadSettings();
   loadExamData();
   updateTimerDisplay();
   setInterval(updateTimerDisplay, 1000);
@@ -95,9 +110,10 @@ document.addEventListener('DOMContentLoaded', function () {
   settingsBtn.addEventListener('click', () => switchView('settings'));
   examListBackBtn.addEventListener('click', () => switchView('timer'));
   returnTimerBtn.addEventListener('click', () => switchView('timer'));
+  loadCurrentPageProblemsBtn.addEventListener('click', loadCurrentPageProblems);
   backToExamsBtn.addEventListener('click', () => switchView('examList'));
   settingsBackBtn.addEventListener('click', () => switchView('timer'));
-  examModeCloseBtn.addEventListener('click', () => switchView('timer'));
+  examModeCloseBtn.addEventListener('click', () => switchView('examList'));
 
   // Timer View Events
   playPauseBtn?.addEventListener('click', togglePlayPause);
@@ -117,8 +133,11 @@ document.addEventListener('DOMContentLoaded', function () {
   examPrevBtn.addEventListener('click', () => navigateProblem(-1));
   examNextBtn.addEventListener('click', () => navigateProblem(1));
   examSubmitBtn.addEventListener('click', submitExam);
+  examCancelBtn.addEventListener('click', confirmDeleteCustomExam);
 
   // Settings Events
+  autoStartToggle.addEventListener('change', saveSettings);
+  notificationToggle.addEventListener('change', saveSettings);
   clearDataBtn.addEventListener('click', clearData);
   confirmCancel.addEventListener('click', closeConfirm);
   confirmOk.addEventListener('click', confirmPendingAction);
@@ -126,8 +145,48 @@ document.addEventListener('DOMContentLoaded', function () {
     if (e.target === confirmOverlay) closeConfirm();
   });
 
+  selectAllProblemsBtn.addEventListener('click', toggleSelectAllProblems);
+  createCustomExamBtn.addEventListener('click', confirmCreateCustomExam);
+  deleteCustomExamBtn.addEventListener('click', confirmDeleteCustomExam);
+
   // Search
   examSearchInput.addEventListener('input', renderExamList);
+
+  chrome.storage.onChanged.addListener((changes, areaName) => {
+    if (areaName === 'local' && changes.activeCustomExam) {
+      activeCustomExam = changes.activeCustomExam.newValue || null;
+      currentExam = activeCustomExam || currentExam;
+      if (currentView === 'examList') {
+        renderExamList();
+      }
+      if (currentView === 'examProblems') {
+        renderExamProblems();
+      }
+    }
+  });
+
+  // ============================================
+  // Settings
+  // ============================================
+  function loadSettings() {
+    chrome.storage.local.get(['settings'], (result) => {
+      const settings = {
+        autoStart: result.settings?.autoStart !== false,
+        notifications: result.settings?.notifications !== false
+      };
+      autoStartToggle.checked = settings.autoStart;
+      notificationToggle.checked = settings.notifications;
+    });
+  }
+
+  function saveSettings() {
+    chrome.storage.local.set({
+      settings: {
+        autoStart: autoStartToggle.checked,
+        notifications: notificationToggle.checked
+      }
+    });
+  }
 
   // ============================================
   // View Switching
@@ -162,10 +221,12 @@ document.addEventListener('DOMContentLoaded', function () {
   // Check if we should show exam mode
   // ============================================
   function checkExamMode() {
-    chrome.storage.local.get(['isExamMode', 'currentExam', 'currentProblemIndex'], (result) => {
-      if (result.isExamMode && result.currentExam) {
-        currentExam = result.currentExam;
-        currentProblemIndex = result.currentProblemIndex || 0;
+    chrome.storage.local.get(['activeCustomExam', 'isExamMode', 'currentExam', 'currentProblemIndex'], (result) => {
+      activeCustomExam = result.activeCustomExam || null;
+      const storedExam = activeCustomExam || result.currentExam;
+      if (result.isExamMode && storedExam) {
+        currentExam = storedExam;
+        currentProblemIndex = storedExam.currentProblemIndex || result.currentProblemIndex || 0;
         switchView('examMode');
       }
     });
@@ -189,8 +250,11 @@ document.addEventListener('DOMContentLoaded', function () {
         const currentTime = getElapsedTime(timerData);
         const timeStr = formatTime(currentTime);
         if (timerValue) timerValue.textContent = timeStr;
-        if (examTimerValue) examTimerValue.textContent = timeStr;
+        updateExamProblemTimer(timerData);
         updatePlayPauseIcons(timerData.isPaused);
+      } else if (currentView === 'examMode') {
+        updateExamProblemTimer(timerData);
+        updatePlayPauseIcons(false);
       } else if (currentView === 'timer') {
         if (timerValue) {
           timerValue.textContent = '00:00:00';
@@ -204,6 +268,25 @@ document.addEventListener('DOMContentLoaded', function () {
 
     updateCountdownDisplay();
     if (currentView === 'examMode') updateExamGlobalTimer();
+  }
+
+  function updateExamProblemTimer(timerData) {
+    if (!examTimerValue) return;
+
+    chrome.storage.local.get(['examStartTime', 'examDuration'], (result) => {
+      const elapsed = result.examStartTime ? Date.now() - result.examStartTime : 0;
+      const duration = Number(result.examDuration) || Number(currentExam?.duration) || 0;
+      const remaining = duration > 0 ? Math.max(0, duration - elapsed) : 0;
+      const minutes = Math.floor(remaining / 60000);
+
+      examTimerValue.textContent = formatTime(remaining);
+      examTimerValue.classList.remove('warning', 'danger');
+      if (duration > 0 && minutes <= 5) {
+        examTimerValue.classList.add('danger');
+      } else if (duration > 0 && minutes <= 10) {
+        examTimerValue.classList.add('warning');
+      }
+    });
   }
 
   // ============================================
@@ -274,18 +357,21 @@ document.addEventListener('DOMContentLoaded', function () {
   // Timer Controls
   // ============================================
   function togglePlayPause() {
-    chrome.runtime.sendMessage({ action: 'togglePauseTimer' }, (response) => {
-      if (chrome.runtime.lastError || !response?.success) return;
-      updatePlayPauseIcons(response.timerData.isPaused);
-      chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
-        if (tabs[0]) {
-          chrome.tabs.sendMessage(tabs[0].id, {
-            action: 'syncPauseState',
-            isPaused: response.timerData.isPaused
+    chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
+      if (!tabs[0]) return;
+
+      chrome.tabs.sendMessage(tabs[0].id, { action: 'togglePlayPause' }, () => {
+        if (chrome.runtime.lastError) {
+          chrome.runtime.sendMessage({ action: 'togglePauseTimer' }, (response) => {
+            if (chrome.runtime.lastError || !response?.success) return;
+            updatePlayPauseIcons(response.timerData.isPaused);
+            updateTimerDisplay();
           });
+          return;
         }
+
+        setTimeout(updateTimerDisplay, 120);
       });
-      updateTimerDisplay();
     });
   }
 
@@ -350,10 +436,9 @@ document.addEventListener('DOMContentLoaded', function () {
     const newIndex = currentProblemIndex + direction;
     if (newIndex >= 0 && newIndex < currentExam.problems.length) {
       currentProblemIndex = newIndex;
-      chrome.storage.local.set({ currentProblemIndex: currentProblemIndex });
+      chrome.runtime.sendMessage({ action: 'setCurrentExamProblem', problemIndex: currentProblemIndex });
       updateExamModeDisplay();
 
-      // Navigate to problem page
       const prob = currentExam.problems[currentProblemIndex];
       if (prob && prob.url) {
         chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
@@ -366,57 +451,198 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   function submitExam() {
-    if (confirm('确定要提交考试吗？提交后将无法继续作答。')) {
-      chrome.storage.local.remove(['isExamMode', 'currentExam', 'currentProblemIndex', 'examStartTime', 'examDuration']);
-      currentExam = null;
-      currentProblemIndex = 0;
-      switchView('timer');
-    }
+    showConfirm({
+      icon: 'task_alt',
+      title: '提交考试？',
+      message: '提交后将结束当前自定义考试，题目完成状态会保留到做题记录中。',
+      confirmText: '提交',
+      onConfirm: () => {
+        chrome.runtime.sendMessage({ action: 'finishCustomExam' }, () => {
+          activeCustomExam = null;
+          currentExam = null;
+          currentProblemIndex = 0;
+          switchView('timer');
+          refreshActiveTabHighlights();
+        });
+      }
+    });
   }
 
   // ============================================
   // Exam Data Management
   // ============================================
   function loadExamData() {
-    chrome.storage.local.get(['examSessions'], (result) => {
-      if (result.examSessions && result.examSessions.length > 0) {
-        examData = result.examSessions;
-      } else {
-        // Generate from session history
-        chrome.runtime.sendMessage({ action: 'getTimerData' }, (timerData) => {
-          if (timerData && timerData.sessions && timerData.sessions.length > 0) {
-            examData = groupSessionsIntoExams(timerData.sessions);
-            chrome.storage.local.set({ examSessions: examData });
-          }
-        });
-      }
+    chrome.storage.local.get(['activeCustomExam'], (result) => {
+      activeCustomExam = result.activeCustomExam || null;
+      examData = [];
+      chrome.storage.local.remove(['examSessions']);
+      if (currentView === 'examList') renderExamList();
     });
   }
 
-  function groupSessionsIntoExams(sessions) {
-    // Group sessions by date into "exam" entries
-    const groups = {};
-    sessions.forEach(s => {
-      const date = new Date(s.startTime);
-      const key = `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
-      if (!groups[key]) {
-        groups[key] = {
-          id: key,
-          name: `${date.getFullYear()}/${date.getMonth() + 1}/${date.getDate()} 练习`,
-          date: date.toISOString(),
-          duration: 0,
-          problems: []
+  // ============================================
+  // Current Page Problem Selection
+  // ============================================
+  function loadCurrentPageProblems() {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (!tabs[0]) return;
+
+      chrome.tabs.sendMessage(tabs[0].id, { action: 'getCurrentPageProblems' }, (response) => {
+        if (chrome.runtime.lastError || !response?.problems?.length) {
+          showConfirm({
+            icon: 'info',
+            title: '未找到题目列表',
+            message: '请先打开 PTA 的题目列表或考试题目列表页面，再从当前页面选择题目。',
+            confirmText: '知道了',
+            onConfirm: () => {}
+          });
+          return;
+        }
+
+        chrome.storage.local.remove(['customExamSelectionPreview'], refreshActiveTabHighlights);
+        customExamSelectionMode = true;
+        currentExam = {
+          id: `selection-${Date.now()}`,
+          name: '当前页面题目',
+          mode: 'selection',
+          date: new Date().toISOString(),
+          duration: response.problems.length * 30 * 60000,
+          problems: response.problems.map((problem) => ({
+            ...problem,
+            status: 'pending',
+            selected: false,
+            solvedAt: null
+          }))
         };
-      }
-      groups[key].problems.push({
-        id: s.problemId,
-        name: s.problemName || s.problemId,
-        duration: s.duration,
-        difficulty: ''
+        selectedProblemIds = new Set();
+        switchView('examProblems');
       });
-      groups[key].duration += s.duration || 0;
     });
-    return Object.values(groups).reverse();
+  }
+
+  function getProblemKey(problem, index) {
+    return problem.id || String(index);
+  }
+
+  function toggleProblemSelection(problem, index) {
+    const key = getProblemKey(problem, index);
+    if (selectedProblemIds.has(key)) {
+      selectedProblemIds.delete(key);
+    } else {
+      selectedProblemIds.add(key);
+    }
+    syncSelectionPreview();
+    renderExamProblems();
+  }
+
+  function toggleSelectAllProblems() {
+    if (!currentExam?.problems) return;
+
+    if (selectedProblemIds.size === currentExam.problems.length) {
+      selectedProblemIds.clear();
+    } else {
+      selectedProblemIds = new Set(currentExam.problems.map((problem, index) => getProblemKey(problem, index)));
+    }
+    syncSelectionPreview();
+    renderExamProblems();
+  }
+
+  function syncSelectionPreview() {
+    if (!customExamSelectionMode || !currentExam?.problems) return;
+
+    const selectedProblems = currentExam.problems
+      .filter((problem, index) => selectedProblemIds.has(getProblemKey(problem, index)))
+      .map((problem) => ({ ...problem, status: 'pending' }));
+
+    if (selectedProblems.length === 0) {
+      chrome.storage.local.remove(['customExamSelectionPreview'], refreshActiveTabHighlights);
+      return;
+    }
+
+    chrome.storage.local.set({
+      customExamSelectionPreview: {
+        id: 'selection-preview',
+        mode: 'selection-preview',
+        problems: selectedProblems
+      }
+    }, refreshActiveTabHighlights);
+  }
+
+  function confirmCreateCustomExam() {
+    if (!selectedProblemIds.size) return;
+
+    const durationMinutes = getCustomExamDurationMinutes();
+    customExamDurationInput.value = String(durationMinutes);
+    showConfirm({
+      icon: 'timer',
+      title: '创建自定义考试？',
+      message: `将使用选中的 ${selectedProblemIds.size} 道题创建一场 ${durationMinutes} 分钟的计时考试。`,
+      confirmText: '开始',
+      onConfirm: createCustomExamFromSelection
+    });
+  }
+
+  function getCustomExamDurationMinutes() {
+    const fallback = selectedProblemIds.size * 30;
+    const value = Number(customExamDurationInput.value);
+    const minutes = Number.isFinite(value) && value > 0 ? value : fallback;
+    return Math.max(1, Math.min(999, Math.round(minutes)));
+  }
+
+  function confirmDeleteCustomExam() {
+    showConfirm({
+      icon: 'delete',
+      title: customExamSelectionMode ? '取消当前选择？' : '删除当前考试？',
+      message: customExamSelectionMode
+        ? '将退出当前页面题目选择，并清除网站题目列表上的选中状态。'
+        : '将删除当前自定义考试设置，并清除网站题目列表上的蓝色/绿色状态。',
+      confirmText: customExamSelectionMode ? '取消选择' : '删除',
+      onConfirm: deleteCustomExam
+    });
+  }
+
+  function deleteCustomExam() {
+    const finishDelete = () => {
+      customExamSelectionMode = false;
+      activeCustomExam = null;
+      selectedProblemIds.clear();
+      currentExam = null;
+      currentProblemIndex = 0;
+      switchView('examList');
+      refreshActiveTabHighlights();
+    };
+
+    if (customExamSelectionMode) {
+      chrome.storage.local.remove(['customExamSelectionPreview'], finishDelete);
+      return;
+    }
+
+    chrome.runtime.sendMessage({ action: 'finishCustomExam' }, finishDelete);
+  }
+
+  function createCustomExamFromSelection() {
+    const durationMinutes = getCustomExamDurationMinutes();
+    const selectedProblems = currentExam.problems
+      .filter((problem, index) => selectedProblemIds.has(getProblemKey(problem, index)))
+      .map((problem) => ({
+        ...problem,
+        status: problem.status === 'solved' ? 'solved' : 'pending',
+        selected: true,
+        solvedAt: problem.solvedAt || null
+      }));
+
+    currentExam = {
+      id: `custom-${Date.now()}`,
+      name: `自定义考试 · ${selectedProblems.length} 题`,
+      mode: 'custom',
+      startedAt: Date.now(),
+      duration: durationMinutes * 60000,
+      currentProblemIndex: 0,
+      problems: selectedProblems
+    };
+    customExamSelectionMode = false;
+    selectedProblemIds.clear();
+    startExamMode(0);
   }
 
   // ============================================
@@ -424,7 +650,8 @@ document.addEventListener('DOMContentLoaded', function () {
   // ============================================
   function renderExamList() {
     const query = (examSearchInput.value || '').toLowerCase();
-    const filtered = examData.filter(e => e.name.toLowerCase().includes(query));
+    const exams = activeCustomExam ? [activeCustomExam] : examData;
+    const filtered = exams.filter(e => e.name.toLowerCase().includes(query));
 
     if (filtered.length === 0) {
       examListScroll.innerHTML = `
@@ -437,24 +664,35 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     examListScroll.innerHTML = '';
-    filtered.forEach((exam, index) => {
+    filtered.forEach((exam) => {
+      const isActive = activeCustomExam?.id === exam.id;
       const item = document.createElement('div');
-      item.className = 'exam-list-item';
+      item.className = `exam-list-item${isActive ? ' active-exam' : ''}`;
       item.innerHTML = `
         <div class="exam-list-item-left">
           <div class="exam-list-icon">
-            <span class="material-symbols-outlined">calendar_today</span>
+            <span class="material-symbols-outlined">${isActive ? 'timer' : 'calendar_today'}</span>
           </div>
-          <span class="exam-list-name">${exam.name}</span>
+          <div class="exam-list-copy">
+            <span class="exam-list-name">${exam.name}</span>
+            ${isActive ? '<span class="exam-list-subtitle">进行中的考试</span>' : ''}
+          </div>
         </div>
         <div class="exam-list-item-right">
           <span class="exam-list-count">${exam.problems.length} 题</span>
+          ${isActive ? '<button class="exam-list-delete-btn" title="取消考试"><span class="material-symbols-outlined">close</span></button>' : ''}
           <span class="material-symbols-outlined exam-list-chevron">chevron_right</span>
         </div>
       `;
       item.addEventListener('click', () => {
         currentExam = exam;
-        switchView('examProblems');
+        currentProblemIndex = exam.currentProblemIndex || 0;
+        switchView(isActive ? 'examMode' : 'examProblems');
+      });
+      item.querySelector('.exam-list-delete-btn')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        currentExam = exam;
+        confirmDeleteCustomExam();
       });
       examListScroll.appendChild(item);
     });
@@ -466,39 +704,78 @@ document.addEventListener('DOMContentLoaded', function () {
   function renderExamProblems() {
     if (!currentExam) return;
 
+    const isCustomExam = currentExam.mode === 'custom';
     examTitle.textContent = currentExam.name;
     examDurationText.textContent = currentExam.duration
       ? Math.round(currentExam.duration / 60000) + ' min'
       : '未知';
-    examStatusBadge.textContent = '已完成';
+    examStatusBadge.textContent = customExamSelectionMode ? '选择题目' : isCustomExam ? '进行中' : '已完成';
+    if (examDurationMeta) examDurationMeta.style.display = customExamSelectionMode || isCustomExam ? 'none' : '';
+    customExamToolbar.style.display = (customExamSelectionMode || isCustomExam) ? 'flex' : 'none';
+    customExamDurationInput.style.display = customExamSelectionMode ? '' : 'none';
+    selectAllProblemsBtn.style.display = customExamSelectionMode ? '' : 'none';
+    createCustomExamBtn.style.display = customExamSelectionMode ? '' : 'none';
+    deleteCustomExamBtn.style.display = isCustomExam ? '' : 'none';
+    deleteCustomExamBtn.textContent = '删除考试';
+
+    if (customExamSelectionMode) {
+      customExamCount.textContent = `已选择 ${selectedProblemIds.size} 题`;
+      selectAllProblemsBtn.textContent = selectedProblemIds.size === currentExam.problems.length ? '取消全选' : '全选';
+      createCustomExamBtn.disabled = selectedProblemIds.size === 0;
+    } else if (isCustomExam) {
+      const solvedCount = currentExam.problems.filter((problem) => problem.status === 'solved').length;
+      customExamCount.textContent = `已完成 ${solvedCount}/${currentExam.problems.length} 题`;
+    }
 
     problemList.innerHTML = '';
-    let totalPoints = currentExam.problems.length * 10;
-    let earnedPoints = 0;
+    const totalProblems = currentExam.problems.length;
+    const solvedCount = currentExam.problems.filter((problem) => problem.status === 'solved').length;
 
     currentExam.problems.forEach((prob, index) => {
+      const key = getProblemKey(prob, index);
+      const selected = selectedProblemIds.has(key);
+      const solved = prob.status === 'solved' || Boolean(prob.duration);
       const item = document.createElement('div');
       item.className = 'problem-list-item';
+      if (customExamSelectionMode && selected) item.classList.add('selected');
+      if (isCustomExam && !solved) item.classList.add('pending');
+      if (solved) item.classList.add('solved');
+
+      const statusText = solved ? '已完成' : (customExamSelectionMode && selected) || isCustomExam ? '待完成' : '';
+      const statusClass = solved ? 'green' : statusText ? 'blue' : '';
+      const actionText = customExamSelectionMode ? (selected ? '已选' : '选择') : '开始';
+
       item.innerHTML = `
         <div class="problem-list-item-left">
-          <div class="problem-list-number">${String(index + 1).padStart(2, '0')}</div>
+          <div class="problem-list-number">${String(prob.displayIndex || index + 1).padStart(2, '0')}</div>
           <div class="problem-list-info">
             <div class="problem-list-name">${prob.name || prob.id || '题目 ' + (index + 1)}</div>
-            <div class="problem-list-meta">${prob.duration ? formatTime(prob.duration) : '未计时'}</div>
+            <div class="problem-list-meta">
+              <span>${prob.duration ? formatTime(prob.duration) : (prob.id || '未计时')}</span>
+              ${statusText ? `<span class="problem-status-badge ${statusClass}">${statusText}</span>` : ''}
+            </div>
           </div>
         </div>
-        <button class="problem-list-start-btn" data-index="${index}">开始</button>
+        <button class="problem-list-start-btn" data-index="${index}">${actionText}</button>
       `;
+
+      item.addEventListener('click', () => {
+        if (customExamSelectionMode) toggleProblemSelection(prob, index);
+      });
       item.querySelector('.problem-list-start-btn').addEventListener('click', (e) => {
         e.stopPropagation();
-        startExamMode(index);
+        if (customExamSelectionMode) {
+          toggleProblemSelection(prob, index);
+        } else {
+          startExamMode(index);
+        }
       });
       problemList.appendChild(item);
     });
 
-    progressValue.textContent = `${earnedPoints} / ${totalPoints} pts`;
-    progressBarFill.style.width = totalPoints > 0 ? (earnedPoints / totalPoints * 100) + '%' : '0%';
-    progressPercent.textContent = totalPoints > 0 ? Math.round(earnedPoints / totalPoints * 100) + '%' : '0%';
+    progressValue.textContent = `${solvedCount} / ${totalProblems} 题`;
+    progressBarFill.style.width = totalProblems > 0 ? (solvedCount / totalProblems * 100) + '%' : '0%';
+    progressPercent.textContent = totalProblems > 0 ? Math.round(solvedCount / totalProblems * 100) + '%' : '0%';
   }
 
   // ============================================
@@ -506,17 +783,45 @@ document.addEventListener('DOMContentLoaded', function () {
   // ============================================
   function startExamMode(problemIndex) {
     currentProblemIndex = problemIndex;
+    currentExam.currentProblemIndex = currentProblemIndex;
 
-    // Save exam mode state
+    const startExam = () => {
+      switchView('examMode');
+      navigateToCurrentProblem();
+      refreshActiveTabHighlights();
+    };
+
+    if (currentExam.mode === 'custom') {
+      chrome.runtime.sendMessage({ action: 'startCustomExam', exam: currentExam }, startExam);
+      return;
+    }
+
     chrome.storage.local.set({
       isExamMode: true,
       currentExam: currentExam,
       currentProblemIndex: currentProblemIndex,
       examStartTime: Date.now(),
       examDuration: currentExam.duration || (currentExam.problems.length * 30 * 60000)
-    });
+    }, startExam);
+  }
 
-    switchView('examMode');
+  function navigateToCurrentProblem() {
+    const prob = currentExam?.problems?.[currentProblemIndex];
+    if (!prob?.url) return;
+
+    chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
+      if (tabs[0]) {
+        chrome.tabs.update(tabs[0].id, { url: prob.url });
+      }
+    });
+  }
+
+  function refreshActiveTabHighlights() {
+    chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
+      if (tabs[0]) {
+        chrome.tabs.sendMessage(tabs[0].id, { action: 'refreshProblemHighlights' });
+      }
+    });
   }
 
   // ============================================

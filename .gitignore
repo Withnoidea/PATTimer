@@ -1,0 +1,7 @@
+# Generated userscript builds for Tampermonkey / Greasy Fork
+*.user.js
+
+# Stitch-generated assets or exports
+[Ss]titch/
+.[Ss]titch/
+*[Ss]titch*

@@ -8,11 +8,13 @@ let isFixed = false;
 let isPaused = false;
 let countdownData = null;
 let countdownPauseTime = 0;
+let countdownWarningShown = false;
 let timerPauseTime = 0;
 let timerPauseOffset = 0;
 let isDragging = false;
 let dragOffset = { x: 0, y: 0 };
 let isExamMode = false; // 考试模式标志
+let hasActiveCustomExam = false;
 let examStartTime = null; // 考试开始时间
 let timerCompleted = false;
 let lastDetectedUrl = null;
@@ -22,15 +24,27 @@ let routeDetectionTimer = null;
 let submissionResultObserver = null;
 let submissionResultCheckTimer = null;
 let timerDisplayUpdateTimer = null;
+let problemListObserver = null;
+let problemListRefreshTimer = null;
+let settings = {
+  autoStart: true,
+  notifications: true
+};
 
 // ============================================
 // Initialization
 // ============================================
 function init() {
-  chrome.storage.local.get(['timerFixed', 'timerPosition'], (result) => {
+  chrome.storage.local.get(['timerFixed', 'timerPosition', 'activeCustomExam', 'isExamMode', 'settings'], (result) => {
     if (result.timerFixed !== undefined) {
       isFixed = result.timerFixed;
     }
+    settings = {
+      autoStart: result.settings?.autoStart !== false,
+      notifications: result.settings?.notifications !== false
+    };
+    hasActiveCustomExam = Boolean(result.activeCustomExam);
+    isExamMode = hasActiveCustomExam || Boolean(result.isExamMode);
 
     detectProblemPage();
 
@@ -47,8 +61,11 @@ function init() {
   timerPauseTime = 0;
   timerPauseOffset = 0;
   countdownPauseTime = 0;
+  countdownWarningShown = false;
 
   startRouteDetection();
+  startProblemListWatcher();
+  scheduleProblemListRefresh();
 }
 
 // ============================================
@@ -67,6 +84,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   } else if (request.action === 'resetTimer') {
     resetTimer();
     sendResponse({ success: true });
+  } else if (request.action === 'getCurrentPageProblems') {
+    sendResponse({ success: true, problems: collectCurrentPageProblems() });
+  } else if (request.action === 'refreshProblemHighlights') {
+    scheduleProblemListRefresh();
+    sendResponse({ success: true });
   }
 });
 
@@ -79,11 +101,19 @@ function detectProblemPage() {
 
   // 检测考试模式：URL 包含 /exam/ 或 /exams/
   const wasExamMode = isExamMode;
-  isExamMode = /\/exams?\//.test(url);
+  isExamMode = hasActiveCustomExam || /\/exams?\//.test(url);
 
   // 考试模式状态变化时，保存到 storage 供 popup 读取
   if (isExamMode !== wasExamMode) {
-    chrome.storage.local.set({ isExamMode: isExamMode });
+    if (isExamMode) {
+      chrome.storage.local.set({ isExamMode: true });
+    } else {
+      chrome.storage.local.get(['activeCustomExam'], (result) => {
+        if (!result.activeCustomExam) {
+          chrome.storage.local.set({ isExamMode: false });
+        }
+      });
+    }
 
     if (isExamMode && !examStartTime) {
       // 进入考试模式，记录考试开始时间
@@ -99,12 +129,19 @@ function detectProblemPage() {
   }
 
   const problemId = extractProblemId(url);
+  scheduleProblemListRefresh();
+
   if (problemId) {
     if (problemId !== currentProblemId) {
+      if (currentProblemId) {
+        stopProblemTimer();
+      }
       currentProblemId = problemId;
       timerCompleted = false;
       resetLocalTimerState();
-      startProblemTimer(problemId);
+      if (settings.autoStart) {
+        startProblemTimer(problemId);
+      }
       createTimerDisplay();
     }
 
@@ -239,6 +276,7 @@ function resetLocalTimerState() {
   timerPauseOffset = 0;
   countdownData = null;
   countdownPauseTime = 0;
+  countdownWarningShown = false;
   chrome.storage.local.remove(['countdownData']);
 }
 
@@ -262,6 +300,137 @@ function markTimerAsCompleted() {
 }
 
 // ============================================
+// Problem List Collection & Highlighting
+// ============================================
+function startProblemListWatcher() {
+  if (problemListObserver || !document.body) {
+    return;
+  }
+
+  problemListObserver = new MutationObserver(scheduleProblemListRefresh);
+  problemListObserver.observe(document.body, {
+    childList: true,
+    subtree: true
+  });
+}
+
+function scheduleProblemListRefresh() {
+  if (problemListRefreshTimer) {
+    return;
+  }
+
+  problemListRefreshTimer = setTimeout(() => {
+    problemListRefreshTimer = null;
+    refreshProblemListHighlights();
+  }, 400);
+}
+
+function collectCurrentPageProblems() {
+  return collectCurrentPageProblemEntries().map(({ id, name, displayIndex, url }) => ({ id, name, displayIndex, url }));
+}
+
+function collectCurrentPageProblemEntries() {
+  const entries = [];
+  const seen = new Set();
+  const links = document.querySelectorAll('a[href*="problemSetProblemId="], a[href*="/problems/"]');
+
+  links.forEach((anchor) => {
+    if (anchor.closest('#pta-timer-display, .timer-countdown-dialog, .timer-finished-toast')) {
+      return;
+    }
+
+    const url = new URL(anchor.href, window.location.href).href;
+    const id = extractProblemId(url);
+    if (!id || seen.has(id)) {
+      return;
+    }
+
+    const target = getProblemListItemTarget(anchor);
+    seen.add(id);
+    entries.push({
+      id: id,
+      name: getProblemNameFromListItem(anchor, target, id),
+      displayIndex: getProblemDisplayIndex(anchor),
+      url: url,
+      target: target
+    });
+  });
+
+  return entries;
+}
+
+function getProblemListItemTarget(anchor) {
+  const listTarget = anchor.closest('td, li, tr, [role="row"], [role="listitem"]');
+  if (listTarget) {
+    return listTarget;
+  }
+  return anchor;
+}
+
+function getProblemDisplayIndex(anchor) {
+  const text = anchor.textContent.trim().replace(/\s+/g, ' ');
+  return /^\d+$/.test(text) ? text : '';
+}
+
+function getProblemNameFromListItem(anchor, target, fallback) {
+  const anchorText = anchor.textContent.trim().replace(/\s+/g, ' ');
+  if (anchorText && anchorText.length <= 40) {
+    return /^\d+$/.test(anchorText) ? `题目 ${anchorText}` : anchorText;
+  }
+
+  const title = target?.querySelector('h1, h2, h3, [class*="title"], [class*="Title"], [class*="name"], [class*="Name"]');
+  const text = (title?.textContent || target?.textContent || '').trim().replace(/\s+/g, ' ');
+  if (text && text.length <= 60 && !/^编程题\s*\d+\s*\/\s*\d+$/.test(text)) {
+    return text;
+  }
+  return fallback;
+}
+
+function refreshProblemListHighlights() {
+  document.querySelectorAll('.pta-problem-highlight-pending, .pta-problem-highlight-solved').forEach((element) => {
+    element.classList.remove('pta-problem-highlight-pending', 'pta-problem-highlight-solved');
+  });
+
+  chrome.storage.local.get(['activeCustomExam', 'customExamSelectionPreview'], (result) => {
+    const exam = result.activeCustomExam || result.customExamSelectionPreview;
+    if (!exam?.problems) {
+      return;
+    }
+
+    const statusById = new Map(exam.problems.map((problem) => [problem.id, problem.status]));
+    collectCurrentPageProblemEntries().forEach(({ id, target }) => {
+      const status = statusById.get(id);
+      if (!status || !target) {
+        return;
+      }
+      target.classList.add(status === 'solved' ? 'pta-problem-highlight-solved' : 'pta-problem-highlight-pending');
+    });
+  });
+}
+
+chrome.storage.onChanged.addListener((changes, areaName) => {
+  if (areaName !== 'local') {
+    return;
+  }
+
+  if (changes.settings) {
+    settings = {
+      autoStart: changes.settings.newValue?.autoStart !== false,
+      notifications: changes.settings.newValue?.notifications !== false
+    };
+  }
+
+  if (changes.activeCustomExam) {
+    hasActiveCustomExam = Boolean(changes.activeCustomExam.newValue);
+    isExamMode = hasActiveCustomExam || /\/exams?\//.test(window.location.href);
+  }
+
+  if (changes.activeCustomExam || changes.customExamSelectionPreview) {
+    scheduleProblemListRefresh();
+  }
+});
+
+// ============================================
 // Timer Control
 // ============================================
 function startProblemTimer(problemId) {
@@ -281,6 +450,15 @@ function stopProblemTimer() {
 function completeProblemTimer() {
   chrome.runtime.sendMessage({
     action: 'completeTimer'
+  }, () => {
+    if (currentProblemId) {
+      chrome.runtime.sendMessage({
+        action: 'markExamProblemSolved',
+        problemId: currentProblemId
+      }, () => {
+        scheduleProblemListRefresh();
+      });
+    }
   });
 }
 
@@ -307,8 +485,8 @@ function renderPlayPauseState(paused) {
   if (btn) btn.title = paused ? '继续' : '暂停';
   if (statusDot) statusDot.classList.toggle('paused', paused);
   if (modeLabel && !timerCompleted) {
-    modeLabel.textContent = paused ? 'PAUSED' : (countdownData && countdownData.isRunning ? 'COUNTDOWN' : 'FOCUS');
-    modeLabel.style.color = paused ? '#d97706' : '';
+    modeLabel.textContent = isExamMode ? 'EXAM' : paused ? 'PAUSED' : (countdownData && countdownData.isRunning ? 'COUNTDOWN' : 'FOCUS');
+    modeLabel.style.color = isExamMode ? '#cf2c30' : paused ? '#d97706' : '';
   }
 }
 
@@ -510,9 +688,23 @@ function toggleFix() {
 function togglePlayPause() {
   if (timerCompleted) return;
 
-  chrome.runtime.sendMessage({ action: 'togglePauseTimer' }, (response) => {
-    if (chrome.runtime.lastError || !response?.success) return;
-    syncPauseState(response.timerData.isPaused);
+  const toggleActiveTimer = () => {
+    chrome.runtime.sendMessage({ action: 'togglePauseTimer' }, (response) => {
+      if (chrome.runtime.lastError || !response?.success) return;
+      syncPauseState(response.timerData.isPaused);
+    });
+  };
+
+  chrome.runtime.sendMessage({ action: 'getTimerData' }, (timerData) => {
+    if (chrome.runtime.lastError) return;
+
+    if ((!timerData?.isRunning || !timerData.currentSession) && currentProblemId) {
+      startProblemTimer(currentProblemId);
+      syncPauseState(false);
+      return;
+    }
+
+    toggleActiveTimer();
   });
 }
 
@@ -544,6 +736,7 @@ function resetTimer() {
   timerPauseOffset = 0;
   countdownData = null;
   countdownPauseTime = 0;
+  countdownWarningShown = false;
   chrome.storage.local.remove(['countdownData']);
 
   const btn = document.getElementById('pta-play-pause');
@@ -569,6 +762,8 @@ function resetTimer() {
   if (currentProblemId) {
     startProblemTimer(currentProblemId);
   }
+
+  scheduleProblemListRefresh();
 }
 
 // ============================================
@@ -635,6 +830,7 @@ function startCountdown(minutes) {
 
   isPaused = false;
   countdownPauseTime = 0;
+  countdownWarningShown = false;
   timerPauseTime = 0;
   timerPauseOffset = 0;
 
@@ -647,6 +843,61 @@ function startCountdown(minutes) {
   modeLabel.textContent = 'COUNTDOWN';
 
   chrome.storage.local.set({ countdownData: countdownData });
+}
+
+// ============================================
+// Countdown Reminders
+// ============================================
+function showCountdownWarningToast(remaining) {
+  document.querySelector('.timer-warning-toast')?.remove();
+
+  const toast = document.createElement('div');
+  toast.className = 'timer-finished-toast timer-warning-toast';
+  toast.innerHTML = `
+    <div class="timer-finished-card warning">
+      <div class="timer-finished-icon">
+        <span class="material-symbols-outlined">timer</span>
+      </div>
+      <div class="timer-finished-copy">
+        <div class="timer-finished-title">倒计时提醒</div>
+        <div class="timer-finished-message">剩余 ${formatCountdownTime(remaining)}，请注意时间。</div>
+      </div>
+      <button class="timer-finished-close" type="button" aria-label="关闭提醒">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+  `;
+
+  document.body.appendChild(toast);
+
+  const closeToast = () => {
+    toast.classList.add('closing');
+    setTimeout(() => toast.remove(), 180);
+  };
+
+  toast.querySelector('.timer-finished-close').addEventListener('click', closeToast);
+  setTimeout(closeToast, 6000);
+}
+
+function showCountdownWarningIfNeeded(remaining) {
+  if (!settings.notifications || countdownWarningShown || isPaused || remaining <= 0) {
+    return;
+  }
+
+  const warningThreshold = Math.min(5 * 60 * 1000, countdownData.duration / 2);
+  if (remaining > warningThreshold) {
+    return;
+  }
+
+  countdownWarningShown = true;
+  showCountdownWarningToast(remaining);
+
+  if (Notification.permission === 'granted') {
+    new Notification('PTA Timer', {
+      body: `倒计时剩余 ${formatCountdownTime(remaining)}`,
+      icon: chrome.runtime.getURL('icons/icon48.png')
+    });
+  }
 }
 
 // ============================================
@@ -692,31 +943,105 @@ function updateTimerDisplay() {
     return;
   }
 
-  updateCountdownDisplay();
-
-  if (!countdownData || !countdownData.isRunning) {
-    chrome.runtime.sendMessage({ action: 'getTimerData' }, (timerData) => {
-      if (chrome.runtime.lastError) return;
-      if (timerData && timerData.isRunning && timerData.currentSession) {
-        const problemName = getProblemName();
-        if (problemName && problemName !== currentProblemId && problemName !== timerData.currentSession.problemName) {
-          chrome.runtime.sendMessage({
-            action: 'startTimer',
-            problemId: currentProblemId,
-            problemName: problemName
-          });
-        }
-
-        renderPlayPauseState(timerData.isPaused);
-        const timeEl = document.getElementById('pta-current-time');
-        if (timeEl) {
-          timeEl.textContent = formatTime(getElapsedTime(timerData));
-        }
+  if (isExamMode) {
+    chrome.storage.local.get(['examStartTime', 'examDuration'], (result) => {
+      if (result.examStartTime && Number(result.examDuration) > 0) {
+        updateExamCountdownDisplay(result);
+        syncCurrentProblemTimerState();
+        return;
       }
+
+      isExamMode = false;
+      if (!/\/exams?\//.test(window.location.href)) {
+        chrome.storage.local.set({ isExamMode: false });
+      }
+      updateProblemTimerDisplay();
     });
+  } else {
+    updateProblemTimerDisplay();
   }
 
   timerDisplayUpdateTimer = setTimeout(updateTimerDisplay, 1000);
+}
+
+function updateProblemTimerDisplay() {
+  updateCountdownDisplay();
+
+  if (countdownData && countdownData.isRunning) {
+    return;
+  }
+
+  chrome.runtime.sendMessage({ action: 'getTimerData' }, (timerData) => {
+    if (chrome.runtime.lastError || !timerData) return;
+    if (timerData.isRunning && timerData.currentSession) {
+      syncCurrentProblemName(timerData);
+
+      const timeEl = document.getElementById('pta-current-time');
+      if (timeEl) {
+        timeEl.textContent = formatTime(getElapsedTime(timerData));
+      }
+      renderPlayPauseState(timerData.isPaused);
+      return;
+    }
+
+    if (currentProblemId && !timerCompleted && settings.autoStart) {
+      startProblemTimer(currentProblemId);
+      renderPlayPauseState(false);
+      return;
+    }
+
+    renderPlayPauseState(true);
+  });
+}
+
+function syncCurrentProblemTimerState() {
+  chrome.runtime.sendMessage({ action: 'getTimerData' }, (timerData) => {
+    if (chrome.runtime.lastError || !timerData || timerCompleted) return;
+    if (timerData.isRunning && timerData.currentSession) {
+      syncCurrentProblemName(timerData);
+    }
+    renderPlayPauseState(timerData.isPaused);
+  });
+}
+
+function syncCurrentProblemName(timerData) {
+  const problemName = getProblemName();
+  if (problemName && problemName !== currentProblemId && problemName !== timerData.currentSession.problemName) {
+    chrome.runtime.sendMessage({
+      action: 'startTimer',
+      problemId: currentProblemId,
+      problemName: problemName
+    });
+  }
+}
+
+function updateExamCountdownDisplay(examTiming) {
+  const timeDisplay = document.getElementById('pta-current-time');
+  const progressFill = document.getElementById('pta-progress-fill');
+  const elapsed = Date.now() - examTiming.examStartTime;
+  const duration = Number(examTiming.examDuration) || 0;
+  const remaining = Math.max(0, duration - elapsed);
+  const minutes = Math.floor(remaining / 60000);
+
+  if (timeDisplay) {
+    timeDisplay.textContent = formatTime(remaining);
+    timeDisplay.classList.remove('warning', 'danger');
+    if (minutes <= 5) {
+      timeDisplay.classList.add('danger');
+    } else if (minutes <= 10) {
+      timeDisplay.classList.add('warning');
+    }
+  }
+
+  if (progressFill) {
+    progressFill.style.width = Math.min(100, elapsed / duration * 100) + '%';
+    progressFill.classList.remove('warning', 'danger');
+    if (minutes <= 5) {
+      progressFill.classList.add('danger');
+    } else if (minutes <= 10) {
+      progressFill.classList.add('warning');
+    }
+  }
 }
 
 function updateCountdownDisplay() {
@@ -741,12 +1066,14 @@ function updateCountdownDisplay() {
   const timeDisplay = document.getElementById('pta-current-time');
   const progressFill = document.getElementById('pta-progress-fill');
 
+  showCountdownWarningIfNeeded(remaining);
+
   if (remaining <= 0) {
     countdownData.isRunning = false;
 
     showCountdownFinishedToast();
 
-    if (Notification.permission === 'granted') {
+    if (settings.notifications && Notification.permission === 'granted') {
       new Notification('PTA Timer', {
         body: '倒计时结束！',
         icon: chrome.runtime.getURL('icons/icon48.png')

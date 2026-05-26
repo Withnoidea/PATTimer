@@ -41,6 +41,21 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         deleteSession(request.sessionIndex);
         sendResponse({ success: true });
         break;
+      case 'startCustomExam':
+        startCustomExam(request.exam, () => sendResponse({ success: true }));
+        break;
+      case 'getActiveCustomExam':
+        getActiveCustomExam((exam) => sendResponse({ success: true, exam: exam }));
+        break;
+      case 'setCurrentExamProblem':
+        setCurrentExamProblem(request.problemIndex, () => sendResponse({ success: true }));
+        break;
+      case 'markExamProblemSolved':
+        markExamProblemSolved(request.problemId, () => sendResponse({ success: true }));
+        break;
+      case 'finishCustomExam':
+        finishCustomExam(() => sendResponse({ success: true }));
+        break;
       case 'clearAllData':
         clearAllData(() => sendResponse({ success: true }));
         break;
@@ -189,6 +204,107 @@ function deleteSession(sessionIndex) {
   const [session] = timerData.sessions.splice(sessionIndex, 1);
   timerData.totalTime = Math.max(0, timerData.totalTime - (session.duration || 0));
   chrome.storage.local.set({ timerData: timerData });
+}
+
+function startCustomExam(exam, callback) {
+  if (!exam) {
+    callback();
+    return;
+  }
+
+  const activeExam = {
+    ...exam,
+    currentProblemIndex: exam.currentProblemIndex || 0,
+    problems: Array.isArray(exam.problems) ? exam.problems : []
+  };
+
+  chrome.storage.local.remove(['customExamSelectionPreview'], () => {
+    chrome.storage.local.set({
+      activeCustomExam: activeExam,
+      isExamMode: true,
+      currentExam: activeExam,
+      currentProblemIndex: activeExam.currentProblemIndex,
+      examStartTime: activeExam.startedAt,
+      examDuration: activeExam.duration
+    }, callback);
+  });
+}
+
+function getActiveCustomExam(callback) {
+  chrome.storage.local.get(['activeCustomExam'], (result) => {
+    callback(result.activeCustomExam || null);
+  });
+}
+
+function setCurrentExamProblem(problemIndex, callback) {
+  chrome.storage.local.get(['activeCustomExam', 'currentExam'], (result) => {
+    const index = Number(problemIndex) || 0;
+    const updates = { currentProblemIndex: index };
+
+    if (result.activeCustomExam) {
+      updates.activeCustomExam = { ...result.activeCustomExam, currentProblemIndex: index };
+    }
+    if (result.currentExam?.mode === 'custom') {
+      updates.currentExam = { ...result.currentExam, currentProblemIndex: index };
+    }
+
+    chrome.storage.local.set(updates, callback);
+  });
+}
+
+function markExamProblemSolved(problemId, callback) {
+  if (!problemId) {
+    callback();
+    return;
+  }
+
+  chrome.storage.local.get(['activeCustomExam', 'currentExam'], (result) => {
+    if (!result.activeCustomExam?.problems) {
+      callback();
+      return;
+    }
+
+    const solvedAt = Date.now();
+    const latestSession = [...timerData.sessions].reverse().find((session) => session.problemId === problemId);
+    const updateProblems = (problems) => problems.map((problem) => {
+      if (problem.id !== problemId) {
+        return problem;
+      }
+      return {
+        ...problem,
+        status: 'solved',
+        solvedAt: solvedAt,
+        duration: latestSession?.duration || problem.duration || 0
+      };
+    });
+
+    const activeCustomExam = {
+      ...result.activeCustomExam,
+      problems: updateProblems(result.activeCustomExam.problems)
+    };
+    const updates = { activeCustomExam: activeCustomExam };
+
+    if (result.currentExam?.mode === 'custom') {
+      updates.currentExam = {
+        ...result.currentExam,
+        problems: updateProblems(result.currentExam.problems || [])
+      };
+    }
+
+    chrome.storage.local.set(updates, callback);
+  });
+}
+
+function finishCustomExam(callback) {
+  chrome.storage.local.remove([
+    'activeCustomExam',
+    'customExamSelectionPreview',
+    'isExamMode',
+    'currentExam',
+    'currentProblemIndex',
+    'examStartTime',
+    'examDuration'
+  ], callback);
 }
 
 function clearAllData(callback) {

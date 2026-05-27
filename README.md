@@ -171,59 +171,9 @@ PATTimer-main/
 └── README.md              # 项目说明
 ```
 
-## 常见问题
+## friend link
 
-### 进入题目页后没有开始计时
-
-请确认：
-
-1. 当前页面域名是 `pintia.cn`。
-2. 扩展或油猴脚本已启用。
-3. 修改代码后已在扩展管理页点击“重新加载”，或在 Tampermonkey 中重新安装脚本。
-4. 当前 URL 中能提取题目 ID，例如包含 `problemSetProblemId` 或 `/problems/`。
-
-### 面板或图标显示异常
-
-请尝试：
-
-1. 重新安装最新版本脚本。
-2. 刷新 PTA 页面。
-3. 确认浏览器没有同时启用旧版本插件和新版本脚本。
-
-### popup、面板和页面上的时间不一致
-
-请重新加载扩展或脚本并刷新 PTA 页面。当前版本的计时状态由后台逻辑统一维护，popup、面板和悬浮计时器都会读取同一份状态。
-
-### 提交后没有自动停止
-
-自动停止依赖 PTA 提交结果弹窗中的文本：
-
-- “提交结果”
-- “答案正确”
-- “分数 x / x”
-
-如果 PTA 页面结构发生变化，需要更新提交结果检测逻辑。
-
-### 提交后浏览器卡顿
-
-当前版本已避免对整页 `innerText` 做高频扫描，改为只检查提交结果弹窗。如果仍然卡顿，请确认浏览器中没有加载旧版本扩展或脚本。
-
-## 开发调试
-
-修改本地插件代码后需要：
-
-1. 打开浏览器扩展管理页。
-2. 点击 PTA Timer 的“重新加载”。
-3. 刷新 PTA 页面。
-4. 重新测试题目计时和提交结果检测。
-
-可以使用以下命令检查脚本语法：
-
-```bash
-node --check background.js
-node --check content.js
-node --check popup.js
-```
+Finally，Thanks to everyone on LinuxDo for their support! Welcome to join https://linux.do/ for all kinds of technical exchanges, cutting-edge AI information, and AI experience sharing, all on Linuxdo!
 
 ## 许可证
 
